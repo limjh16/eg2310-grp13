@@ -13,13 +13,27 @@ import cv2 as cv
 # constants
 occ_bins = [-1, 0, 50, 100]
 
-def dilate123(src, size):
+
+def dilate123(src, size=1, shape=cv.MORPH_RECT):
+    """Dilation for odata array (after binning and reshape)
+
+    Args:
+        src (ndarray): input odata array
+        size (integer): number of iterations of dilation,
+                            this size / resolution is the meters that the image is dilated.
+        shape (integer): cv2 MorphShapes
+
+    Returns:
+        ndarray: output of dilated array
+    """
     array_edited = np.copy(src)
     array_edited[array_edited <= 2] = 0
+    array_edited //= 3
     array_dilated = cv.dilate(
         array_edited,
-        cv.getStructuringElement(cv.MORPH_CROSS, (2 * size + 1, 2 * size + 1)),
+        cv.getStructuringElement(shape, (2 * size + 1, 2 * size + 1)),
     )
+    array_dilated *= 3
     return np.maximum(src, array_dilated)
 
 
@@ -38,7 +52,7 @@ class Occupy(Node):
             occdata, np.nan, statistic="count", bins=occ_bins
         )
         odata = np.uint8(binnum.reshape(msg.info.height, msg.info.width))
-        odata = dilate123(odata, 4)
+        odata = dilate123(odata, size=4)  # 4 here means 20cm
 
         # create image from 2D array using PIL
         img = Image.fromarray(odata)
@@ -81,6 +95,8 @@ class FirstOccupy(Node):
         )
 
         self.get_logger().info("New Origin: " + str(current_min))
+        # self.get_logger().info(str(msg.info.resolution))
+        # resolution = 0.05m per 1 array unit
 
         t = TransformStamped()
 

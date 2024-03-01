@@ -35,10 +35,12 @@ result = dilate123(arra, 1)
 time_end = time.perf_counter()
 print("cv3: " + str(time_end - time_start))
 
+# after testing, converting all values to 1 and 0 is
+# marginally faster than leaving the values as 3 and 0.
 time_start = time.perf_counter()
 array_edited = np.copy(arra)
 array_edited[array_edited <= 2] = 0
-array_edited /= 3
+array_edited //= 3
 array_dilated = cv.dilate(
     array_edited,
     cv.getStructuringElement(cv.MORPH_CROSS, (2 * 1 + 1, 2 * 1 + 1)),
