@@ -8,9 +8,19 @@ from PIL import Image
 import scipy.stats
 from geometry_msgs.msg import TransformStamped
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
+import cv2 as cv
 
 # constants
 occ_bins = [-1, 0, 50, 100]
+
+def dilate123(src, size):
+    array_edited = np.copy(src)
+    array_edited[array_edited <= 2] = 0
+    array_dilated = cv.dilate(
+        array_edited,
+        cv.getStructuringElement(cv.MORPH_CROSS, (2 * size + 1, 2 * size + 1)),
+    )
+    return np.maximum(src, array_dilated)
 
 
 class Occupy(Node):
@@ -28,6 +38,7 @@ class Occupy(Node):
             occdata, np.nan, statistic="count", bins=occ_bins
         )
         odata = np.uint8(binnum.reshape(msg.info.height, msg.info.width))
+        odata = dilate123(odata, 4)
 
         # create image from 2D array using PIL
         img = Image.fromarray(odata)
