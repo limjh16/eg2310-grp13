@@ -53,12 +53,13 @@ class Occupy(Node):
         )
         odata = np.uint8(binnum.reshape(msg.info.height, msg.info.width))
         odata = dilate123(odata, size=4)  # 4 here means 20cm
+        # np.savetxt('/home/jh/ogm.txt',odata,fmt='%i')
 
         # create image from 2D array using PIL
-        img = Image.fromarray(odata)
+        # img = Image.fromarray(odata)
         # show the image using grayscale map
-        plt.imshow(img, cmap="gray", origin="lower")
-        plt.draw_all()
+        plt.imshow(odata, cmap="gray", origin="lower")
+        # plt.draw_all()
         # pause to make sure the plot gets created
         plt.pause(0.00000000001)
 
@@ -121,6 +122,7 @@ def main(args=None):
     occupy = Occupy()
     firstoccupy = FirstOccupy()
     rclpy.spin_once(firstoccupy)
+    firstoccupy.destroy_node()
 
     # create matplotlib figure
     plt.ion()
@@ -133,6 +135,7 @@ def main(args=None):
     # when the garbage collector destroys the node object)
     occupy.destroy_node()
     rclpy.shutdown()
+    # cv.destroyAllWindows()
 
 
 if __name__ == "__main__":
