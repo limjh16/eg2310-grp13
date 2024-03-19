@@ -159,8 +159,11 @@ class Occupy(Node):
 
         self.get_logger().info("finding path...")
 
+        # this is the list of path coordinates, will be returned at the end as the completed path
+        path_coordinates = []
+
         # bool variables to check if the current position is within range of goal
-        range_dist = 12
+        range_dist = 5
         is_within_goal_y = (curr_pos[1] < goal_pos[1] + range_dist and curr_pos[1] > goal_pos[1] - range_dist)
         is_within_goal_x = (curr_pos[0] < goal_pos[0] + range_dist and curr_pos[0] > goal_pos[0] - range_dist)
 
@@ -168,7 +171,10 @@ class Occupy(Node):
         # exit the loop when current position is in range of the goal
         while not (is_within_goal_x and is_within_goal_y):
             new_pos = a_star(curr_pos, start_pos, goal_pos, odata) # finds next point to travel to
-            self.get_logger().info(str(new_pos))
+            self.get_logger().info(str(new_pos)) # print the new_coordinates to travel to
+
+            new_pos_rviz = convert_to_rviz(new_pos)
+            path_coordinates.append((new_pos_rviz[0], new_pos_rviz[1])) # save the new coordinates in the path_coordinates list
             
             # need to print absolute coordinates, not with reference to defined origin
             map_pos = dereference_to_origin(new_pos)
@@ -177,7 +183,7 @@ class Occupy(Node):
                 odata[int(map_pos[1]), int(map_pos[0])] = 4
             
             # create image from 2D array using PIL
-            if loop_count % 15 == 0: # print new map only every 3 movements
+            if loop_count % 15 == 0: # print new map only every 15 movements
                 img = Image.fromarray(odata)
                 # show the image using grayscale map
                 plt.imshow(img, cmap="gray", origin="lower")
@@ -201,6 +207,9 @@ class Occupy(Node):
         self.get_logger().info("path found!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         # np.savetxt('/home/jh/ogm.txt',odata,fmt='%i')
 
+        # print out the entire path_coordinates
+        self.get_logger().info(str(path_coordinates))
+
         # create image from 2D array using PIL
         # img = Image.fromarray(odata)
         # show the image using grayscale map
@@ -208,6 +217,7 @@ class Occupy(Node):
         # plt.draw_all()
         # pause to make sure the plot gets created
         plt.pause(5.00000000001)
+
         
         # exit this node once path found
         raise SystemExit
