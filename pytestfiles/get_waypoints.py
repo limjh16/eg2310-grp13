@@ -1,7 +1,7 @@
 import cv2 as cv
 import numpy as np
 
-def get_waypoints(path_array): # path_array in rviz coord
+def get_waypoints(path_array:list): # path_array in rviz coord
     """Generate waypoints (vertices) from shortest path
 
     Args:
