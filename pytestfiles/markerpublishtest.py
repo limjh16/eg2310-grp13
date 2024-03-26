@@ -85,7 +85,8 @@ class FirstOccupy(Node):
         self.get_logger().info("publishing")
         # markerA = get_waypoints(path_array)
         markerA = MarkerArray()
-        markerA.markers.append(wp_to_rviz((-0.45,-0.25)))
+        # markerA.markers.append(wp_to_rviz((-0.45,-0.25)))
+        markerA.markers.append(wp_to_rviz((1.1,-0.24)))
         self.marker_pub.publish(markerA)
 
 def main(args=None):
