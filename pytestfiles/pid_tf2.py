@@ -1,4 +1,5 @@
 import math
+import time
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
@@ -23,8 +24,8 @@ class WPMover(Node):
         # self.subscription = self.create_timer(0.01,self.listener_callback)
         self.tfBuffer = tf2_ros.Buffer()
         self.tfListener = tf2_ros.TransformListener(self.tfBuffer, self)
-        self.pid_angular = PID(1, 0, 2, output_limits=(-2.84,2.84))
-        self.pid_linear = PID(0.3, 0, 1, setpoint = 0, output_limits=(-0.22,0))
+        self.pid_angular = PID(0.5, 0, 1, output_limits=(-1,1)) # old 2.84
+        self.pid_linear = PID(0.3, 0, 1, setpoint = 0, output_limits=(-0.1,0)) # old 0.22
         self.cmdvelpub = self.create_publisher(Twist,'cmd_vel',10)
 
     def listener_callback(self,_):
@@ -38,24 +39,26 @@ class WPMover(Node):
         # self.get_logger().info('Trans: %f, %f' % (cur_pos.x, cur_pos.y))
         # convert quaternion to Euler angles
         _, _, yaw = euler_from_quaternion(cur_rot.x, cur_rot.y, cur_rot.z, cur_rot.w)
-        yaw = yaw - math.pi if yaw > 0 else yaw + math.pi
+        # yaw = yaw - math.pi if yaw > 0 else yaw + math.pi
         # self.get_logger().info('Rot-Yaw: R: %f D: %f' % (yaw, np.degrees(yaw)))
-        dx = cur_pos.x - (-0.45)
-        dy = cur_pos.y - (-0.25)
+        dx = cur_pos.x - (1.1)
+        dy = cur_pos.y - (-0.24)
         linear_dist = math.sqrt(dx**2+dy**2)
         linear_speed = self.pid_linear(linear_dist)
         self.pid_angular.setpoint = math.atan(dy/dx)
         angular_speed = self.pid_angular(yaw)
         twist = Twist()
-        if linear_dist < 0.03:
+        if linear_dist < 0.1:
             twist.linear.x = 0.0
             twist.angular.z = 0.0
-            self.cmdvelpub.publish(twist)
+            now = time.time()
+            while time.time() - now < 0.5:
+                self.cmdvelpub.publish(twist)
             self.get_logger().info('Done')
             self.subscription.destroy()
             self.destroy_node()
-        twist.linear.x = float(abs(linear_speed))
-        twist.angular.z = angular_speed
+        twist.linear.x = float(-(linear_speed))
+        twist.angular.z = float(angular_speed)
         self.cmdvelpub.publish(twist)
         # self.get_logger().info('LinSpd: '+str(linear_speed)+' LinDst: '+str(linear_dist)+' AngSpd: '+str(angular_speed)+' Yaw: '+str(yaw))
 
@@ -72,12 +75,16 @@ def main(args=None):
         twist = Twist()
         twist.linear.x = 0.0
         twist.angular.z = 0.0
-        wpmover.cmdvelpub.publish(twist)
+        now = time.time()
+        while time.time() - now < 0.5:
+            wpmover.cmdvelpub.publish(twist)
 
     twist = Twist()
     twist.linear.x = 0.0
     twist.angular.z = 0.0
-    wpmover.cmdvelpub.publish(twist)
+    now = time.time()
+    while time.time() - now < 0.5:
+        wpmover.cmdvelpub.publish(twist)
     wpmover.get_logger().info('Done')
     wpmover.subscription.destroy()
     wpmover.destroy_node()

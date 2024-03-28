@@ -102,7 +102,7 @@ class Occupy(Node):
         )
         global odata
         odata = np.uint8(binnum.reshape(msg.info.height, msg.info.width))
-        odata = dilate123(odata, size=4)  # 4 here means 20cm
+        odata = dilate123(odata, size=3)  # 4 here means 20cm @TODO make this a proper measurement w.r.t resolution
         (odata_y, odata_x) = odata.shape
         self.get_logger().info("maze dilated")
 
