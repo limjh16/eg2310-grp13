@@ -396,27 +396,6 @@ def cost_to_goal(pos, goal_pos):
     dist_y = abs(goal_pos[1] - pos[1])
     return math.sqrt(dist_x**2 + dist_y**2)
 
-# class SquareGrid:
-#     def __init__(self, width, height):
-#         self.width = width
-#         self.height = height
-#         self.walls = []
-
-#     def in_bounds(self, id):
-#         (x, y) = id
-#         return 0 <= x < self.width and 0 <= y < self.height
-
-#     def passable(self, id):
-#         return id not in self.walls
-
-#     def neighbors(self, id):
-#         (x, y) = id
-#         results = [(x + 1, y), (x, y - 1), (x - 1, y), (x, y + 1)]
-#         if (x + y) % 2 == 0:
-#             results.reverse()  # aesthetics
-#         results = filter(self.in_bounds, results)
-#         results = filter(self.passable, results)
-#         return results
     
 def in_bounds(id):
     temp_pos = dereference_to_origin(id)
@@ -449,18 +428,7 @@ def neighbors(id, graph):
     results = filter(in_bounds, results)
     results = filter(passable, results)
     return results
-    # for result in results: 
-    #     temp_pos = dereference_to_origin(result)
-    #     if temp_pos[1] > len(graph) or temp_pos[0] > len(graph[0]) or temp_pos[1] < 0 or temp_pos[0] < 0:
-    #         continue
-    #     print(result)
-    #     print(graph[temp_pos[1]][temp_pos[0]])
-        
-    #     explore_next = []
-    #     if graph[temp_pos[1]][temp_pos[0]] == 2:
-    #     # if graph[result[1]][result[0]] != 2:
-    #         explore_next.append(result)
-    # return explore_next
+    
 
 def heuristic(a, b):
     (x1, y1) = a
@@ -475,7 +443,7 @@ def a_star_search(graph, start, goal):
     frontier.put(start, 0)
     came_from = {start: None}
     cost_so_far = {start: 0}
-    # path = []
+    turning_cost = 100
 
     while not frontier.empty():
         current = frontier.get()
@@ -503,7 +471,16 @@ def a_star_search(graph, start, goal):
             if next not in cost_so_far or new_cost < cost_so_far[next]:
                 cost_so_far[next] = new_cost
                 priority = new_cost + heuristic(goal, next)
-                # priority = cost_to_goal(next, goal)
+                prev = came_from[current]
+                if prev != None:
+                    # next_direction = (int(next[0] - current[0]), int(next[1] - current[1]))
+                    # current_direction = (int(current[0] - prev[0]), int(current[1] - prev[1]))
+                    next_direction = (next[0] - current[0], next[1] - current[1])
+                    current_direction = (current[0] - prev[0], current[1] - prev[1])
+                    if  current_direction != next_direction:
+                        
+                        priority += turning_cost
+                    
                 frontier.put(next, priority)
                 came_from[next] = current
 
