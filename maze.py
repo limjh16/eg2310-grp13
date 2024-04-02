@@ -375,6 +375,15 @@ def heuristic(a, b):
 
 # I got this one from online somewhere
 def a_star_search(graph, start, goal):
+    """ This function searches for the shortest path via the a star search algo
+    Args: 
+        graph (2D Array): A matrix representation of the map
+        start (tuple): The start position of the robot
+        goal (tuple): The target or goal position 
+    Returns: 
+        came_from (dict): For each point in the path, the coordinates provided is the coordinates prior to that point
+        cost_so_far (dict): 
+        final_pos (tuple): The coordinates of the final position of the robot once the path is complete"""
     print("Start: " + str(start))
     print("Goal: " + str(goal))
     frontier = PriorityQueue()
@@ -417,10 +426,11 @@ def a_star_search(graph, start, goal):
                     if  current_direction != next_direction:
                         
                         priority += turning_cost
+                        print("cost added")
                     
                 frontier.put(next, priority)
                 came_from[next] = current
-
+    # print(cost_so_far)
     return came_from, cost_so_far, final_pos
     # return path
 
