@@ -102,7 +102,8 @@ class Occupy(Node):
         # make odata a global variable to be accessible by all functions
         global odata
         odata = np.uint8(binnum.reshape(msg.info.height, msg.info.width))
-        # odata = dilate123(odata, size=3)  # 4 here means 20cm @TODO make this a proper measurement w.r.t resolution
+        odata = dilate123(odata, size=int(0.243/2//msg.info.resolution+1))
+        # Robot is 0.243m at its longest, divide by 2 to get radius, divide by resolution to change to odata coords, +1 for good measure
         (odata_y, odata_x) = odata.shape
         self.get_logger().info("maze dilated")
 
@@ -406,11 +407,11 @@ def a_star_search(graph, start, goal):
 def main(args=None):
     rclpy.init(args=args)
 
-    outwps = get_waypoints(blablalist)
-    for x in outwps:
-        move_turn(x)
-        move_straight(x)
-    time.sleep(10)
+    # outwps = get_waypoints(blablalist)
+    # for x in outwps:
+    #     move_turn(x)
+    #     move_straight(x)
+    # time.sleep(10)
 
 
     occupy = Occupy()
