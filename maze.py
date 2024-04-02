@@ -19,7 +19,7 @@ import math
 import tf2_ros
 from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
 import scipy.stats
-from auto_nav.lib.pid_tf2 import WPMover, WPTurner
+from auto_nav.lib.pid_tf2 import move_straight, move_turn
 
 UNKNOWN = 1
 UNOCCUPIED = 2
@@ -430,13 +430,7 @@ def a_star_search(graph, start, goal):
 def main(args=None):
     rclpy.init(args=args)
 
-    wpturner = WPTurner((-1.1, 0.14))
-    try:
-        rclpy.spin(wpturner)
-    except Exception and KeyboardInterrupt:
-        print("kb interrupt")
-    except SystemExit:
-        print("sys exit done")
+    move_turn((-1.1,0.14))
     time.sleep(10)
 
 

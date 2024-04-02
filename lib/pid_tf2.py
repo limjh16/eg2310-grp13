@@ -147,6 +147,35 @@ class WPTurner(Node):
         twist.angular.z = float(angular_speed)
         self.cmdvelpub.publish(twist)
 
+def move_straight(
+        target: tuple,
+        end_distance_range: float = 0.1,
+        PID_angular: tuple = (0.5, 0, 1),
+        PID_linear: tuple = (0.3, 0, 1),
+        angular_speed_limit: float = 1,  # old 2.84
+        linear_speed_limit: float = 0.1,  # old 0.22
+    ):
+        wpmover = WPMover(target, end_distance_range, PID_angular, PID_linear, angular_speed_limit, linear_speed_limit)
+        try:
+            rclpy.spin(wpmover)
+        except Exception and KeyboardInterrupt:
+            print("kb interrupt")
+        except SystemExit:
+            print("sys exit done")
+
+def move_turn(
+        target: tuple,
+        end_yaw_range: float = 0.05,
+        PID_angular: tuple = (1, 0, 2),
+        angular_speed_limit: float = 1,  # old 2.84
+    ):
+        wpturner = WPTurner(target, end_yaw_range, PID_angular, angular_speed_limit)
+        try:
+            rclpy.spin(wpturner)
+        except Exception and KeyboardInterrupt:
+            print("kb interrupt")
+        except SystemExit:
+            print("sys exit done")
 
 def main(args=None):
     rclpy.init(args=args)
