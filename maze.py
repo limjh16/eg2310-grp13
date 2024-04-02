@@ -28,6 +28,7 @@ OCCUPIED = 3
 
 # constants
 occ_bins = [-1, 0, 50, 100]
+path_main = []
 
 # use this function to convert raw odata coordinates to reference the defined origin
 def reference_to_origin(raw_odata_coord):
@@ -226,7 +227,8 @@ class Occupy(Node):
             path_rviz.append((round(point_rviz[0], 4), round(point_rviz[1], 4)))
 
         self.get_logger().info(str(path_rviz))
-
+        global path_main
+        path_main = path_rviz
         
         # create image from 2D array using PIL
         # img = Image.fromarray(odata)
@@ -234,7 +236,7 @@ class Occupy(Node):
         plt.imshow(odata, cmap="gray", origin="lower")
         # plt.draw_all()
         # pause to make sure the plot gets created
-        plt.pause(5.00000000001)
+        plt.pause(1.00000000001)
         
         
         # exit this node once path found
@@ -405,7 +407,7 @@ def a_star_search(graph, start, goal):
                     if  current_direction != next_direction:
                         
                         priority += turning_cost
-                        print("cost added")
+                        # print("cost added")
                     
                 frontier.put(next, priority)
                 came_from[next] = current
@@ -416,13 +418,6 @@ def a_star_search(graph, start, goal):
         
 def main(args=None):
     rclpy.init(args=args)
-
-    # outwps = get_waypoints(blablalist)
-    # for x in outwps:
-    #     move_turn(x)
-    #     move_straight(x)
-    # time.sleep(10)
-
 
     occupy = Occupy()
     firstoccupy = FirstOccupy()
@@ -438,8 +433,15 @@ def main(args=None):
     except SystemExit:                 # <--- process the exception 
         rclpy.logging.get_logger("Quitting").info('Done')
 
-  
-    
+    outwps = get_waypoints(path_main)
+    print("out waypoints: " + str(outwps))
+    for x in outwps:
+        print(x)
+        time.sleep(2)
+        move_turn(x)
+        time.sleep(1)
+        move_straight(x)
+        time.sleep(1)
 
     # Destroy the node explicitly
     # (optional - otherwise it will be done automatically

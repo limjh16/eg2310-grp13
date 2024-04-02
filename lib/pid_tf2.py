@@ -81,8 +81,7 @@ class WPMover(Node):
             self.get_logger().info("Done")
             self.subscription.destroy()
             self.destroy_node()
-            print("node destroyed")
-            return
+            raise SystemExit
         twist.linear.x = float((linear_speed))
         twist.angular.z = float(angular_speed)
         self.cmdvelpub.publish(twist)

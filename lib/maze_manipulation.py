@@ -10,11 +10,13 @@ def get_waypoints(path_array:list): # path_array in rviz coord
         waypoints_array (list): List of waypoints (in rviz coordinates format)
     """
     waypoints_array = []
-    prev_diff = (path_array[1][0] - path_array[0][0], path_array[1][1] - path_array[0][1])
+    prev_diff = (round((path_array[1][0] - path_array[0][0]),2), round((path_array[1][1] - path_array[0][1]),2))
     for i in range(1,len(path_array)):
-        current_diff = (path_array[i][0] - path_array[i-1][0], path_array[i][1] - path_array[i-1][1])
+        current_diff = (round((path_array[i][0] - path_array[i-1][0]),2), round((path_array[i][1] - path_array[i-1][1]),2))
         if prev_diff != current_diff:
             prev_diff = current_diff
+            print(prev_diff)
+            print(current_diff)
             waypoints_array.append(path_array[i-1])
     waypoints_array.append(path_array[-1])
     return waypoints_array
