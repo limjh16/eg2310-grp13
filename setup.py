@@ -27,6 +27,10 @@ setup(
             'r2occupancy2 = auto_nav.r2occupancy2:main',
             'r2auto_nav = auto_nav.r2auto_nav:main',
             'maze = auto_nav.maze:main',
+'a_star = auto_nav.a_star:main',
+'utils = auto_nav.utils:main',
+'gridmap = auto_nav.gridmap:main',
+            'r2maze_test = auto_nav.r2maze_test:main',
         ],
     },
 )
