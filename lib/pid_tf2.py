@@ -5,10 +5,11 @@ from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import Twist
-from auto_nav.lib.tf2_quat_utils import euler_from_quaternion
+from .tf2_quat_utils import euler_from_quaternion
 import tf2_ros
 from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
 from simple_pid import PID
+from typing import Tuple
 
 
 class WPMover(Node):
@@ -147,35 +148,63 @@ class WPTurner(Node):
         twist.angular.z = float(angular_speed)
         self.cmdvelpub.publish(twist)
 
+
 def move_straight(
-        target: tuple,
-        end_distance_range: float = 0.1,
-        PID_angular: tuple = (0.5, 0, 1),
-        PID_linear: tuple = (0.3, 0, 1),
-        angular_speed_limit: float = 1,  # old 2.84
-        linear_speed_limit: float = 0.1,  # old 0.22
-    ):
-        wpmover = WPMover(target, end_distance_range, PID_angular, PID_linear, angular_speed_limit, linear_speed_limit)
-        try:
-            rclpy.spin(wpmover)
-        except Exception and KeyboardInterrupt:
-            print("kb interrupt")
-        except SystemExit:
-            print("sys exit done")
+    target: Tuple[float, float],
+    end_distance_range: float = 0.1,
+    PID_angular: Tuple[float, float, float] = (0.5, 0, 1),
+    PID_linear: Tuple[float, float, float] = (0.3, 0, 1),
+    angular_speed_limit: float = 1,  # old 2.84
+    linear_speed_limit: float = 0.1,  # old 0.22
+):
+    """Move Straight to RViz Waypoint
+
+    Args:
+        target (Tuple[float, float]): (x,y) in RViz coordinates
+        end_distance_range (float, optional): When target is x meters away, stop function. Defaults to 0.1.
+        PID_angular (Tuple[float, float, float], optional): (kP, kI, kD). Defaults to (0.5, 0, 1).
+        PID_linear (Tuple[float, float, float], optional): (kP, kI, kD). Defaults to (0.3, 0, 1).
+        angular_speed_limit (float, optional): Angular Velocity Limit. Defaults to 1.
+        linear_speed_limit (float, optional): Linear Velocity Limit. Defaults to 0.1.
+    """
+    wpmover = WPMover(
+        target,
+        end_distance_range,
+        PID_angular,
+        PID_linear,
+        angular_speed_limit,
+        linear_speed_limit,
+    )
+    try:
+        rclpy.spin(wpmover)
+    except Exception and KeyboardInterrupt:
+        print("kb interrupt")
+    except SystemExit:
+        print("sys exit done")
+
 
 def move_turn(
-        target: tuple,
-        end_yaw_range: float = 0.05,
-        PID_angular: tuple = (1, 0, 2),
-        angular_speed_limit: float = 1,  # old 2.84
-    ):
-        wpturner = WPTurner(target, end_yaw_range, PID_angular, angular_speed_limit)
-        try:
-            rclpy.spin(wpturner)
-        except Exception and KeyboardInterrupt:
-            print("kb interrupt")
-        except SystemExit:
-            print("sys exit done")
+    target: Tuple[float, float],
+    end_yaw_range: float = 0.05,
+    PID_angular: Tuple[float, float, float] = (1, 0, 2),
+    angular_speed_limit: float = 1,  # old 2.84
+):
+    """Turn to face RViz Waypoint
+
+    Args:
+        target (Tuple[float, float]): (x,y) in RViz coordinates
+        end_yaw_range (float, optional): When robot is within x rad, stop function. Defaults to 0.05.
+        PID_angular (Tuple[float, float, float], optional): (kP, kI, kD). Defaults to (1, 0, 2).
+        angular_speed_limit (float, optional): Angular Velocity Limit. Defaults to 1.
+    """
+    wpturner = WPTurner(target, end_yaw_range, PID_angular, angular_speed_limit)
+    try:
+        rclpy.spin(wpturner)
+    except Exception and KeyboardInterrupt:
+        print("kb interrupt")
+    except SystemExit:
+        print("sys exit done")
+
 
 def main(args=None):
     rclpy.init(args=args)

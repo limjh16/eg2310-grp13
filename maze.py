@@ -19,7 +19,8 @@ import math
 import tf2_ros
 from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
 import scipy.stats
-from auto_nav.lib.pid_tf2 import move_straight, move_turn
+from .lib.pid_tf2 import move_straight, move_turn
+from .lib.maze_manipulation import get_waypoints, dilate123
 
 UNKNOWN = 1
 UNOCCUPIED = 2
@@ -27,31 +28,6 @@ OCCUPIED = 3
 
 # constants
 occ_bins = [-1, 0, 50, 100]
-
-
-def dilate123(src, size=1, shape=cv.MORPH_RECT):
-    """Dilation for odata array (after binning and reshape)
-
-    Args:
-        src (ndarray): input odata array
-        size (integer): number of iterations of dilation,
-                            this size / resolution is the meters that the image is dilated.
-        shape (integer): cv2 MorphShapes
-
-    Returns:
-        ndarray: output of dilated array
-    """
-    array_edited = np.copy(src)
-    array_edited[array_edited <= 2] = 0
-    array_edited //= 3
-    array_dilated = cv.dilate(
-        array_edited,
-        cv.getStructuringElement(shape, (2 * size + 1, 2 * size + 1)),
-    )
-    array_dilated *= 3
-    return np.maximum(src, array_dilated)
-
-
 
 # use this function to convert raw odata coordinates to reference the defined origin
 def reference_to_origin(raw_odata_coord):
@@ -126,7 +102,8 @@ class Occupy(Node):
         # make odata a global variable to be accessible by all functions
         global odata
         odata = np.uint8(binnum.reshape(msg.info.height, msg.info.width))
-        # odata = dilate123(odata, size=3)  # 4 here means 20cm @TODO make this a proper measurement w.r.t resolution
+        odata = dilate123(odata, size=int(0.243/2//msg.info.resolution+1))
+        # Robot is 0.243m at its longest, divide by 2 to get radius, divide by resolution to change to odata coords, +1 for good measure
         (odata_y, odata_x) = odata.shape
         self.get_logger().info("maze dilated")
 
@@ -440,8 +417,11 @@ def a_star_search(graph, start, goal):
 def main(args=None):
     rclpy.init(args=args)
 
-    move_turn((-1.1,0.14))
-    time.sleep(10)
+    # outwps = get_waypoints(blablalist)
+    # for x in outwps:
+    #     move_turn(x)
+    #     move_straight(x)
+    # time.sleep(10)
 
 
     occupy = Occupy()
