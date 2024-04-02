@@ -13,7 +13,7 @@ from simple_pid import PID
 
 class WPMover(Node):
 
-    def __init__(self):
+    def __init__(self,target_x,target_y):
         super().__init__('wpmover')
         self.subscription = self.create_subscription(
             TFMessage,
@@ -22,8 +22,10 @@ class WPMover(Node):
             qos_profile_sensor_data)
         # self.subscription  # prevent unused variable warning
         # self.subscription = self.create_timer(0.01,self.listener_callback)
+        self.target_x = target_x
+        self.target_y = target_y
         self.tfBuffer = tf2_ros.Buffer()
-        self.tfListener = tf2_ros.TransformListener(self.tfBuffer, self)
+        self.tfListener = tf2_ros.TransformListener(self.tfBuffer, self, qos=qos_profile_sensor_data)
         self.pid_angular = PID(0.5, 0, 1, output_limits=(-1,1)) # old 2.84
         self.pid_linear = PID(0.3, 0, 1, setpoint = 0, output_limits=(-0.1,0)) # old 0.22
         self.cmdvelpub = self.create_publisher(Twist,'cmd_vel',10)
@@ -36,13 +38,14 @@ class WPMover(Node):
             return
         cur_pos = trans.transform.translation
         cur_rot = trans.transform.rotation
+        self.get_logger().info(str(cur_pos.x))
         # self.get_logger().info('Trans: %f, %f' % (cur_pos.x, cur_pos.y))
         # convert quaternion to Euler angles
         _, _, yaw = euler_from_quaternion(cur_rot.x, cur_rot.y, cur_rot.z, cur_rot.w)
         # yaw = yaw - math.pi if yaw > 0 else yaw + math.pi
         # self.get_logger().info('Rot-Yaw: R: %f D: %f' % (yaw, np.degrees(yaw)))
-        dx = cur_pos.x - (1.1)
-        dy = cur_pos.y - (-0.24)
+        dx = cur_pos.x - self.target_x
+        dy = cur_pos.y - self.target_y
         linear_dist = math.sqrt(dx**2+dy**2)
         linear_speed = self.pid_linear(linear_dist)
         self.pid_angular.setpoint = math.atan(dy/dx)
@@ -53,11 +56,12 @@ class WPMover(Node):
             twist.angular.z = 0.0
             now = time.time()
             while time.time() - now < 0.5:
+                time.sleep(0.1)
                 self.cmdvelpub.publish(twist)
             self.get_logger().info('Done')
             self.subscription.destroy()
             self.destroy_node()
-        twist.linear.x = float(-(linear_speed))
+        twist.linear.x = float((linear_speed))
         twist.angular.z = float(angular_speed)
         self.cmdvelpub.publish(twist)
         # self.get_logger().info('LinSpd: '+str(linear_speed)+' LinDst: '+str(linear_dist)+' AngSpd: '+str(angular_speed)+' Yaw: '+str(yaw))
@@ -68,16 +72,17 @@ class WPMover(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    wpmover = WPMover()
+    wpmover = WPMover(-1.1,0.14)
     try:
         rclpy.spin(wpmover)
     except Exception and KeyboardInterrupt:
-        twist = Twist()
-        twist.linear.x = 0.0
-        twist.angular.z = 0.0
-        now = time.time()
-        while time.time() - now < 0.5:
-            wpmover.cmdvelpub.publish(twist)
+        # twist = Twist()
+        # twist.linear.x = 0.0
+        # twist.angular.z = 0.0
+        # now = time.time()
+        # while time.time() - now < 0.5:
+        #     wpmover.cmdvelpub.publish(twist)
+        pass
 
     twist = Twist()
     twist.linear.x = 0.0
@@ -85,6 +90,7 @@ def main(args=None):
     now = time.time()
     while time.time() - now < 0.5:
         wpmover.cmdvelpub.publish(twist)
+        time.sleep(0.1)
     wpmover.get_logger().info('Done')
     wpmover.subscription.destroy()
     wpmover.destroy_node()
