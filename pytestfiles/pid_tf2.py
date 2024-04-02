@@ -4,30 +4,34 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from tf2_msgs.msg import TFMessage
-import numpy as np
 from geometry_msgs.msg import Twist
-from lib.tf2_quat_utils import euler_from_quaternion, quaternion_from_euler
+from lib.tf2_quat_utils import euler_from_quaternion
 import tf2_ros
 from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
 from simple_pid import PID
 
 class WPMover(Node):
 
-    def __init__(self,target_x,target_y):
+    def __init__(
+            self,
+            target: tuple,
+            PID_angular: tuple = (0.5, 0, 1),
+            PID_linear: tuple = (0.3, 0, 1),
+            angular_speed_limit: float = 1, # old 2.84
+            linear_speed_limit: float = 0.1 # old 0.22
+        ):
         super().__init__('wpmover')
         self.subscription = self.create_subscription(
             TFMessage,
             'tf',
             self.listener_callback,
             qos_profile_sensor_data)
-        # self.subscription  # prevent unused variable warning
-        # self.subscription = self.create_timer(0.01,self.listener_callback)
-        self.target_x = target_x
-        self.target_y = target_y
+        self.target_x = target[0]
+        self.target_y = target[1]
         self.tfBuffer = tf2_ros.Buffer()
         self.tfListener = tf2_ros.TransformListener(self.tfBuffer, self, qos=qos_profile_sensor_data)
-        self.pid_angular = PID(0.5, 0, 1, output_limits=(-1,1)) # old 2.84
-        self.pid_linear = PID(0.3, 0, 1, setpoint = 0, output_limits=(-0.1,0)) # old 0.22
+        self.pid_angular = PID(PID_angular[0],PID_angular[1],PID_angular[2], output_limits=(-angular_speed_limit,angular_speed_limit)) 
+        self.pid_linear = PID(PID_linear[0],PID_linear[1],PID_linear[2], setpoint = 0, output_limits=(-linear_speed_limit,0)) 
         self.cmdvelpub = self.create_publisher(Twist,'cmd_vel',10)
 
     def listener_callback(self,_):
@@ -72,16 +76,10 @@ class WPMover(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    wpmover = WPMover(-1.1,0.14)
+    wpmover = WPMover((-1.1,0.14))
     try:
         rclpy.spin(wpmover)
     except Exception and KeyboardInterrupt:
-        # twist = Twist()
-        # twist.linear.x = 0.0
-        # twist.angular.z = 0.0
-        # now = time.time()
-        # while time.time() - now < 0.5:
-        #     wpmover.cmdvelpub.publish(twist)
         pass
 
     twist = Twist()
