@@ -53,12 +53,23 @@ def dilate123(src, size=1, shape=cv.MORPH_RECT):
 
 # use this function to convert raw odata coordinates to reference the defined origin
 def reference_to_origin(raw_odata_coord):
+    """ Offsetting of raw data of coordinates with respect to the defined origin on odata
+    Args:
+        raw_odata_coord (tuple): the (x, y) value in odata
+    Returns: 
+        tuple: (x, y) value in odata eith reference to the origin
+    """
     return (
         raw_odata_coord[0] - odata_origin[0],
         raw_odata_coord[1] - odata_origin[1]
     )
 #use this function to dereference odata coordinates from the defined origin
 def dereference_to_origin(ref_odata_coord):
+    """ resetting of coordinates with resepect to odata
+    Args: 
+        ref_odata_coord (tuple): the (x, y) value in odata with respect to the origin
+    Returns: 
+        tuple: (x, y) raw value in odata"""
     return (
         ref_odata_coord[0] + odata_origin[0],
         ref_odata_coord[1] + odata_origin[1]
@@ -81,6 +92,11 @@ class Occupy(Node):
 
         # use this function to convert from rviz coordinates to odata coordinates
         def convert_to_rviz(odata_coord):
+            """ Scaling of odata (x, y) coordinates to rviz (x, y) coordinates in meters
+            Args: 
+                odata_coord (tuple): (x, y) coordinates in odata
+            Returns:
+                tuple: (x, y) coordinates in rviz, in meters"""
             rviz = (
             odata_coord[0] * msg.info.resolution + msg.info.origin.position.x,
             odata_coord[1] * msg.info.resolution + msg.info.origin.position.y,
@@ -88,6 +104,11 @@ class Occupy(Node):
             return rviz
         # use this function to convert from odata coordinates to rviz coordinates
         def convert_to_odata(rviz):
+            """ Scaling of rviz (x, y) coordinates in meters to odata (x, y) coordinates
+            Args: 
+                rviz (tuple): (x, y) coordinates in rviz
+            Returns: 
+                tuple: (x, y) coordinates in odata"""
             odata_coord = (
 
                 round(float(rviz[0] - msg.info.origin.position.x) / msg.info.resolution), 
@@ -100,9 +121,10 @@ class Occupy(Node):
         _, _, binnum = scipy.stats.binned_statistic(
             occdata, np.nan, statistic="count", bins=occ_bins
         )
+        # make odata a global variable to be accessible by all functions
         global odata
         odata = np.uint8(binnum.reshape(msg.info.height, msg.info.width))
-        odata = dilate123(odata, size=3)  # 4 here means 20cm @TODO make this a proper measurement w.r.t resolution
+        # odata = dilate123(odata, size=3)  # 4 here means 20cm @TODO make this a proper measurement w.r.t resolution
         (odata_y, odata_x) = odata.shape
         self.get_logger().info("maze dilated")
 
@@ -127,9 +149,6 @@ class Occupy(Node):
 
         # current position of turtlebot in odata, with reference to origin 
         curr_pos = reference_to_origin(curr_pos_odata)
-        # add a cost variable (x, y, cost)
-        curr_pos = (curr_pos[0], curr_pos[1], 0)
-        # curr_pos = ((curr_pos_odata[0] - odata_origin[0]), (curr_pos_odata[1] - odata_origin[1]), 0)
         self.get_logger().info('Current' + str(curr_pos))
 
         def check_neighbours(row, col, checknum):
@@ -170,9 +189,6 @@ class Occupy(Node):
         
         # find goal_pos, the goal relative to the origin coordinates
         goal_pos = reference_to_origin(goal)
-        # update goal_pos with the cost from the start to the goal
-        goal_pos = (goal_pos[0], goal_pos[1], cost_to_goal(curr_pos, goal_pos))
-        # goal_pos = ((goal[0] - odata_origin[0]), (goal[1] - odata_origin[1]), 0)
         self.get_logger().info('Goal' + str(goal_pos))
         # raise SystemExit
 
@@ -187,78 +203,6 @@ class Occupy(Node):
 
         self.get_logger().info("finding path...")
 
-        # this is the list of path coordinates, will be returned at the end as the completed path
-        # path_coordinates = []
-        # visited = []
-
-        # bool variables to check if the current position is within range of goal
-        # range_dist = 10
-        # is_within_goal_y = (curr_pos[1] < goal_pos[1] + range_dist and curr_pos[1] > goal_pos[1] - range_dist)
-        # is_within_goal_x = (curr_pos[0] < goal_pos[0] + range_dist and curr_pos[0] > goal_pos[0] - range_dist)
-
-        """
-
-        loop_count = 0
-        # exit the loop when current position is in range of the goal
-        while not (is_within_goal_x and is_within_goal_y):
-
-            # pqueue = aa_star(curr_pos, prev_pos, goal_pos)
-
-            # new_pos = pqueue.get()[1] # take the position tuple in the pqueue entry
-            # prev_pos = curr_pos
-            # curr_pos = new_pos
-
-
-
-            new_pos = a_star(curr_pos, start_pos, goal_pos, odata) # finds next point to travel to
-            self.get_logger().info(str(new_pos)) # print the new_coordinates to travel to
-
-            new_pos_rviz = convert_to_rviz(new_pos)
-            path_coordinates.append((round(new_pos_rviz[0], 6), round(new_pos_rviz[1], 6))) # save the new coordinates in the path_coordinates list
-            
-            # need to print absolute coordinates, not with reference to defined origin
-            map_pos = dereference_to_origin(new_pos)
-            # loop to visibly observe curr_pos in the occupancy grid
-            for i in range(1):
-                odata[int(map_pos[1]), int(map_pos[0])] = 4
-            
-            # create image from 2D array using PIL
-            if loop_count % 15 == 0: # print new map only every 15 movements
-                img = Image.fromarray(odata)
-                # show the image using grayscale map
-                plt.imshow(img, cmap="gray", origin="lower")
-                plt.draw_all()
-                # pause to make sure the plot gets created
-                plt.pause(0.00000000001)
-            self.get_logger().info("finding next")
-            
-
-            # this is just to make sure the loop exits and doesn't loop again once path found
-            # if new_pos == (0, 0, 0):
-            #     break
-            
-        
-
-            # update curr_pos 
-            curr_pos = new_pos
-            # update bool status of whether or not curr_pos is in range of goal
-            is_within_goal_y = (curr_pos[1] < goal_pos[1] + range_dist and curr_pos[1] > goal_pos[1] - range_dist)
-            is_within_goal_x = (curr_pos[0] < goal_pos[0] + range_dist and curr_pos[0] > goal_pos[0] - range_dist)
-            loop_count += 1
-        """
-
-        # if aa_star(curr_pos, (0, 0, 0), start_pos, goal_pos, path_coordinates, visited, odata):
-
-        #     self.get_logger().info("path found!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        #     # np.savetxt('/home/jh/ogm.txt',odata,fmt='%i')
-
-        #     # print out the entire path_coordinates
-        #     self.get_logger().info(str(path_coordinates))
-        
-        # else:
-        #     self.get_logger().info("no path found")
-
-        
         # create image from 2D array using PIL
         # img = Image.fromarray(odata)
         # show the image using grayscale map
@@ -267,32 +211,35 @@ class Occupy(Node):
         # pause to make sure the plot gets created
         plt.pause(1.00000000001)
         
-        came_from, cost_so_far = a_star_search(odata, (start_pos[0], start_pos[1]), (goal_pos[0], goal_pos[1]))
+        came_from, cost_so_far, final_pos = a_star_search(odata, start_pos, goal_pos)
+    
+
         '''
-        # final_pos_count = 0
-        for pos in came_from:
-            if pos == final_pos:
-                # final_pos_count += 1
-        self.get_logger().info("final_pos_count: " + str(final_pos_count))
+        So the goal is found alr
+        coordinates of goal is somewhere in came_from and cost_to_goal
+        1. Find GOAL as a key in came_from
+        2. Add GOAL into path[]
+        3. Find the values to find previous coordinates
+        4. For each of the previous coordinates, find the one with lowest cost
+        5. repeat from step 2 to 4
         '''
 
         last_pos = final_pos
+        # create a list to store all the coordinates of the path, in reverse sequence, starting from last_pos
         path = [last_pos]
         prev_pos = 0
+        # loop to find all points in the path until the start_pos is reached, append the path list whenever the next point is found
         while prev_pos != (start_pos[0], start_pos[1]):
             prev_pos = came_from[last_pos]
             last_pos = prev_pos
             path.append(last_pos)
+        # reverse the order of the list, such that the path starts from start_pos
         path.reverse()
+        # declare an empty array to store the rviz coordinates of the path, to be used to move the robot
         path_rviz = []
         self.get_logger().info(str(path))
 
-
-        # self.get_logger().info(str(came_from))
-        self.get_logger().info("")
-        # self.get_logger().info(str(cost_so_far))
-
-
+        #loop for every point in path to convert to rviz coordinates to be stored in path_rviz
         for point in path:
             map_point = dereference_to_origin(point)
             odata[map_point[1]][map_point[0]] = 4
@@ -314,15 +261,6 @@ class Occupy(Node):
         # exit this node once path found
         raise SystemExit
         
-
-'''
-So the goal is found alr
-coordinates of goal is somewhere in came_from and cost_to_goal
-1. Find GOAL as a key in came_from
-2. Add GOAL into path[]
-3. Find the values to find previous coordinates
-4. For each of the previous coordinates, find the one with lowest cost
-5. repeat from step 2 to 4'''
 
 
 class FirstOccupy(Node):
@@ -458,7 +396,6 @@ def a_star_search(graph, start, goal):
         if is_within_goal_x and is_within_goal_y:
         # if current == goal:
             print("Goal Found!!!")
-            global final_pos
             final_pos = current
             print(final_pos)
             break
@@ -484,107 +421,9 @@ def a_star_search(graph, start, goal):
                 frontier.put(next, priority)
                 came_from[next] = current
 
-    return came_from, cost_so_far
+    return came_from, cost_so_far, final_pos
     # return path
 
-'''
-
-# arguments: current position, prev position
-# scan for all 7 directions (exclude prev position)
-# for each direction, calculate cost = cost_so_far + cost to this point
-# put it in the queue
-# sort the queue afterwards
-# path is a list of the confirmed points to visit
-def aa_star(curr_pos, prev_pos, start_pos, goal_pos, path, visited, gridmap):
-    # possible directions
-    """
-    Get all possible 8-connectivity movements. Equivalent to get_movements_in_radius(1).
-    :return: list of movements with cost [(dx, dy, movement_cost)]
-    """
-
-    range_dist = 10
-    is_within_goal_y = (curr_pos[1] < goal_pos[1] + range_dist and curr_pos[1] > goal_pos[1] - range_dist)
-    is_within_goal_x = (curr_pos[0] < goal_pos[0] + range_dist and curr_pos[0] > goal_pos[0] - range_dist)
-
-    if is_within_goal_x and is_within_goal_y:
-        return True
-    
-    s2 = math.sqrt(2)
-    directions = [(1, 0, 1.0), #right
-            (0, 1, 1.0), #forward
-            (-1, 0, 1.0), #left
-            (0, -1, 1.0), #back
-            (1, 1, s2), 
-            (-1, 1, s2),
-            (-1, -1, s2),
-            (1, -1, s2)]
-    
-    pqueue = PriorityQueue()
-    for direction in directions: 
-        new_pos = (int(curr_pos[0] + direction[0]), int(curr_pos[1] + direction[1]), int(curr_pos[2] + direction[2]))
-        temp_pos = dereference_to_origin(new_pos)
-        if gridmap[temp_pos[1], temp_pos[0]] != 2: # if the next pos is not an unoccupied region
-            continue
-        if new_pos[0] == prev_pos[0] and new_pos[1] == prev_pos[1]: # if this new position is the same as the previous position
-            continue
-        if new_pos in visited:
-            continue
-        # calc_cost = cost_to_goal(new_pos, goal_pos) + new_pos[2]
-        calc_cost = cost_to_goal(new_pos, goal_pos) + cost_to_goal(start_pos, new_pos)
-        pqueue.put(calc_cost, new_pos)
-
-    while not pqueue.empty():
-        next_pos = pqueue.get()
-        print(next_pos)
-        next_pos = (next_pos[1][0], next_pos[1][1])
-        print(str(next_pos))
-        visited.append((next_pos[0], next_pos[1]))
-        # next_pos = next_pos[1] # take the position tuple in the lowest pqueue entry
-        if aa_star(next_pos, curr_pos, goal_pos, path, visited, gridmap):
-            path.append(next_pos)
-            self.get_logger().info(str(next_pos))
-            return True
-    return False
-'''
-
-
-
-# curr_pos = (x-coordinate, y-coordinate, cost from start point)
-def a_star(curr_pos, start_pos, goal_pos, gridmap):
-    # possible directions
-    """
-    Get all possible 8-connectivity movements. Equivalent to get_movements_in_radius(1).
-    :return: list of movements with cost [(dx, dy, movement_cost)]
-    """
-    s2 = math.sqrt(2)
-    directions = [(1, 0, 1.0), #right
-            (0, 1, 1.0), #forward
-            (-1, 0, 1.0), #left
-            (0, -1, 1.0), #back
-            (1, 1, s2), 
-            (-1, 1, s2),
-            (-1, -1, s2),
-            (1, -1, s2)]
-    next_pos = curr_pos
-    min_cost = 0
-    for direction in directions: 
-        new_pos = (int(curr_pos[0] + direction[0]), int(curr_pos[1] + direction[1]), int(curr_pos[2] + direction[2]))
-        #for i in range(0, 2, 1):
-         #   new_pos[i] += direction[i]
-        
-        temp_pos = dereference_to_origin(new_pos)
-        if gridmap[temp_pos[1], temp_pos[0]] == 2:
-            calc_cost = cost_to_goal(new_pos, goal_pos) + new_pos[2]
-        
-        # if min_cost == 0:
-        #     min_cost = calc_cost
-            if not min_cost or calc_cost < min_cost:
-                min_cost = calc_cost
-                next_pos = new_pos
-        else: 
-            continue
-    return next_pos
-            
         
 def main(args=None):
     rclpy.init(args=args)
