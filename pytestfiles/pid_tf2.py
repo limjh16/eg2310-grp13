@@ -5,7 +5,7 @@ from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import Twist
-from lib.tf2_quat_utils import euler_from_quaternion
+from auto_nav.lib.tf2_quat_utils import euler_from_quaternion
 import tf2_ros
 from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
 from simple_pid import PID
