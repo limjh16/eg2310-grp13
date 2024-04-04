@@ -29,6 +29,7 @@ OCCUPIED = 3
 # constants
 occ_bins = [-1, 0, 50, 100]
 path_main = []
+dilate_size = 2
 
 # use this function to convert raw odata coordinates to reference the defined origin
 def reference_to_origin(raw_odata_coord):
@@ -103,8 +104,10 @@ class Occupy(Node):
         # make odata a global variable to be accessible by all functions
         global odata
         odata = np.uint8(binnum.reshape(msg.info.height, msg.info.width))
-        odata = dilate123(odata, size=int(0.243/2//msg.info.resolution+1))
-        # Robot is 0.243m at its longest, divide by 2 to get radius, divide by resolution to change to odata coords, +1 for good measure
+
+        dilate_size = int((0.243/2)//msg.info.resolution)
+        odata = dilate123(odata, size=dilate_size)
+        # Robot is 0.243m at its longest, divide by 2 to get radius, divide by resolution to change to odata coords, no need to +1 since walls aren't 5cm
         (odata_y, odata_x) = odata.shape
         self.get_logger().info("maze dilated")
 
@@ -352,7 +355,7 @@ def neighbors(id, graph):
 def heuristic(a, b):
     (x1, y1) = a
     (x2, y2) = b
-    return abs(x1 - x2) + abs(y1 - y2)
+    return 1.4 if abs(x1 - x2) and abs(y1 - y2) else 1 # sqrt2
 
 # I got this one from online somewhere
 def a_star_search(graph, start, goal):
@@ -368,18 +371,18 @@ def a_star_search(graph, start, goal):
     print("Start: " + str(start))
     print("Goal: " + str(goal))
     frontier = PriorityQueue()
-    frontier.put(start, 0)
+    frontier.put((0, start))
     came_from = {start: None}
     cost_so_far = {start: 0}
     turning_cost = 100
 
     while not frontier.empty():
-        current = frontier.get()
+        (_,current) = frontier.get()
         # print("Current: " + str(current))
         # path.append(current)
 
         # bool variables to check if the current position is within range of goal
-        range_dist = 5
+        range_dist = dilate_size # if we dilate by 2, this needs to be 2
         is_within_goal_y = (current[1] < goal[1] + range_dist and current[1] > goal[1] - range_dist)
         is_within_goal_x = (current[0] < goal[0] + range_dist and current[0] > goal[0] - range_dist)
 
@@ -409,7 +412,7 @@ def a_star_search(graph, start, goal):
                         priority += turning_cost
                         # print("cost added")
                     
-                frontier.put(next, priority)
+                frontier.put((priority,next))
                 came_from[next] = current
     # print(cost_so_far)
     return came_from, cost_so_far, final_pos
@@ -437,11 +440,11 @@ def main(args=None):
     print("out waypoints: " + str(outwps))
     for x in outwps:
         print(x)
-        time.sleep(2)
+        # time.sleep(2)
         move_turn(x)
-        time.sleep(1)
+        # time.sleep(1)
         move_straight(x)
-        time.sleep(1)
+        # time.sleep(1)
 
     # Destroy the node explicitly
     # (optional - otherwise it will be done automatically
