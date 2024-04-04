@@ -29,7 +29,7 @@ class WPMover(Node):
         self.target_x = target[0]
         self.target_y = target[1]
         self.end_distance_range = end_distance_range
-        self.tfBuffer = tf2_ros.Buffer()
+        self.tfBuffer = tf2_ros.Buffer(cache_time = rclpy.duration.Duration(seconds=0.1))
         self.tfListener = tf2_ros.TransformListener(
             self.tfBuffer, self, qos=qos_profile_sensor_data
         )
@@ -103,7 +103,7 @@ class WPTurner(Node):
         self.target_x = target[0]
         self.target_y = target[1]
         self.end_yaw_range = end_yaw_range
-        self.tfBuffer = tf2_ros.Buffer()
+        self.tfBuffer = tf2_ros.Buffer(cache_time = rclpy.duration.Duration(seconds=0.1))
         self.tfListener = tf2_ros.TransformListener(
             self.tfBuffer, self, qos=qos_profile_sensor_data
         )
