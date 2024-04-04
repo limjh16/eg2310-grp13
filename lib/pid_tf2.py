@@ -5,7 +5,7 @@ from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import Twist
-from .tf2_quat_utils import euler_from_quaternion
+from .tf2_quat_utils import euler_from_quaternion, quaternion_multiply, quaternion_from_euler
 import tf2_ros
 from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
 from simple_pid import PID
@@ -37,6 +37,7 @@ class WPMover(Node):
             PID_angular[0],
             PID_angular[1],
             PID_angular[2],
+            setpoint=0,
             output_limits=(-angular_speed_limit, angular_speed_limit),
         )
         self.pid_linear = PID(
@@ -54,33 +55,16 @@ class WPMover(Node):
                 "map", "base_link", rclpy.time.Time()
             )
         except (LookupException, ConnectivityException, ExtrapolationException):
-            self.get_logger().info("No transformation found")
+            # self.get_logger().info("No transformation found")
             return
-        cur_pos = trans.transform.translation
-        cur_rot = trans.transform.rotation
-        # self.get_logger().info(str(cur_pos.x))
-        # self.get_logger().info('Trans: %f, %f' % (cur_pos.x, cur_pos.y))
-        # convert quaternion to Euler angles
-        _, _, yaw = euler_from_quaternion(cur_rot.x, cur_rot.y, cur_rot.z, cur_rot.w)
-        # yaw = yaw - math.pi if yaw > 0 else yaw + math.pi
-        # self.get_logger().info('Rot-Yaw: R: %f D: %f' % (yaw, np.degrees(yaw)))
-        dx = cur_pos.x - self.target_x
-        dy = cur_pos.y - self.target_y
+        cur_pos, cur_rot, dx, dy = dxdy(trans,self)
+        angular_speed, _ = angular(cur_pos, cur_rot, dx, dy, self)
         linear_dist = math.sqrt(dx**2 + dy**2)
         linear_speed = self.pid_linear(linear_dist)
-        self.pid_angular.setpoint = math.atan(dy / dx)
-        angular_speed = self.pid_angular(yaw)
+
         twist = Twist()
         if linear_dist < self.end_distance_range:
-            twist.linear.x = 0.0
-            twist.angular.z = 0.0
-            now = time.time()
-            while time.time() - now < 0.5:
-                time.sleep(0.1)
-                self.cmdvelpub.publish(twist)
-            self.get_logger().info("Done")
-            self.subscription.destroy()
-            self.destroy_node()
+            stop_kill(self)
             raise SystemExit
         twist.linear.x = float((linear_speed))
         twist.angular.z = float(angular_speed)
@@ -111,6 +95,7 @@ class WPTurner(Node):
             PID_angular[0],
             PID_angular[1],
             PID_angular[2],
+            setpoint=0,
             output_limits=(-angular_speed_limit, angular_speed_limit),
         )
         self.cmdvelpub = self.create_publisher(Twist, "cmd_vel", 10)
@@ -121,28 +106,14 @@ class WPTurner(Node):
                 "map", "base_link", rclpy.time.Time()
             )
         except (LookupException, ConnectivityException, ExtrapolationException):
-            self.get_logger().info("No transformation found")
+            # self.get_logger().info("No transformation found")
             return
-        cur_pos = trans.transform.translation
-        cur_rot = trans.transform.rotation
-        _, _, yaw = euler_from_quaternion(cur_rot.x, cur_rot.y, cur_rot.z, cur_rot.w)
-        # yaw = yaw - math.pi if yaw > 0 else yaw + math.pi
-        # self.get_logger().info('Rot-Yaw: R: %f D: %f' % (yaw, np.degrees(yaw)))
-        dx = cur_pos.x - self.target_x
-        dy = cur_pos.y - self.target_y
-        self.pid_angular.setpoint = math.atan(dy / dx)
-        angular_speed = self.pid_angular(yaw)
+        
+        angular_speed, rot_tf_yaw = angular(*dxdy(trans,self),self)
         twist = Twist()
         twist.linear.x = 0.0
-        if abs(math.atan(dy / dx) - yaw) < self.end_yaw_range:
-            twist.angular.z = 0.0
-            now = time.time()
-            while time.time() - now < 0.5:
-                time.sleep(0.1)
-                self.cmdvelpub.publish(twist)
-            self.get_logger().info("Done")
-            self.subscription.destroy()
-            self.destroy_node()
+        if abs(rot_tf_yaw) < self.end_yaw_range:
+            stop_kill(self)
             raise SystemExit
         twist.angular.z = float(angular_speed)
         self.cmdvelpub.publish(twist)
@@ -177,7 +148,8 @@ def move_straight(
     try:
         rclpy.spin(wpmover)
     except Exception and KeyboardInterrupt:
-        print("kb interrupt")
+        stop_kill(wpmover)
+        print("killed")
     except SystemExit:
         print("sys exit done")
 
@@ -200,32 +172,70 @@ def move_turn(
     try:
         rclpy.spin(wpturner)
     except Exception and KeyboardInterrupt:
-        print("kb interrupt")
+        stop_kill(wpturner)
+        print("killed")
     except SystemExit:
         print("sys exit done")
 
-
-def main(args=None):
-    rclpy.init(args=args)
-
-    wpturner = WPTurner((-1.1, 0.14))
-    try:
-        rclpy.spin(wpturner)
-    except Exception and KeyboardInterrupt:
-        pass
-    except SystemExit:
-        print("sys exit done")
-
+def stop_kill(node: Node):
     twist = Twist()
     twist.linear.x = 0.0
     twist.angular.z = 0.0
     now = time.time()
     while time.time() - now < 0.5:
-        wpturner.cmdvelpub.publish(twist)
+        node.cmdvelpub.publish(twist)
         time.sleep(0.1)
-    wpturner.get_logger().info("Done")
-    wpturner.subscription.destroy()
-    wpturner.destroy_node()
+    node.get_logger().info("Done")
+    node.subscription.destroy()
+    node.destroy_node()
+
+def angular(cur_pos, cur_rot, dx, dy, node: Node):
+    i, j, cur_yaw = euler_from_quaternion(cur_rot.x, cur_rot.y, cur_rot.z, cur_rot.w)
+    target_yaw = math.atan2(dy , dx)
+    target_rot = quaternion_from_euler(i,j,-target_yaw)
+
+    rot_tf = quaternion_multiply(target_rot,(cur_rot.x, cur_rot.y, cur_rot.z, -cur_rot.w))
+    _, _, rot_tf_yaw = euler_from_quaternion(rot_tf[0],rot_tf[1],rot_tf[2],rot_tf[3])
+    # self.pid_angular.setpoint = rot_tf
+    # yaw = yaw - math.pi if yaw > 0 else yaw + math.pi
+    # self.get_logger().info('cur_yaw: %f target_yaw: %f diff: %f quat_tf: %f' % (cur_yaw, target_yaw, target_yaw - cur_yaw, rot_tf_yaw))
+    # time.sleep(0.1)
+    angular_speed = node.pid_angular(-rot_tf_yaw)
+    return angular_speed, rot_tf_yaw
+
+def dxdy(trans,node:Node):
+    cur_pos = trans.transform.translation
+    cur_rot = trans.transform.rotation
+    dx = cur_pos.x - node.target_x
+    dy = cur_pos.y - node.target_y
+    # self.get_logger().info(str(cur_pos.x))
+    # self.get_logger().info('Trans: %f, %f' % (cur_pos.x, cur_pos.y))
+    return cur_pos, cur_rot, dx, dy
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    move_turn((1,-0.22))
+    move_straight((1,-0.22))
+
+    # wpturner = WPTurner((-1, 0.22))
+    # try:
+    #     rclpy.spin(wpturner)
+    # except Exception and KeyboardInterrupt:
+    #     pass
+    # except SystemExit:
+    #     print("sys exit done")
+
+    # twist = Twist()
+    # twist.linear.x = 0.0
+    # twist.angular.z = 0.0
+    # now = time.time()
+    # while time.time() - now < 0.5:
+    #     wpturner.cmdvelpub.publish(twist)
+    #     time.sleep(0.1)
+    # wpturner.get_logger().info("Done")
+    # wpturner.subscription.destroy()
+    # wpturner.destroy_node()
     rclpy.shutdown()
 
 
