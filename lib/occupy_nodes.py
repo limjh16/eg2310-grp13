@@ -4,7 +4,7 @@ from rclpy.node import Node
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
-from rclpy.qos import qos_profile_sensor_data
+from rclpy.qos import qos_profile_sensor_data, qos_profile_system_default
 from nav_msgs.msg import OccupancyGrid
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,7 +19,9 @@ import math
 import tf2_ros
 from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
 import scipy.stats
+from .maze_manipulation import dilate123, inflate
 # from .lib.pid_tf2 import move_straight, move_turn
+from array import array as Array
 
 
 UNKNOWN = 1
@@ -30,17 +32,6 @@ OCCUPIED = 3
 occ_bins = [-1, 0, 50, 100]
 path_main = []
 dilate_size = 2
-
-
-def dilate123(src, size):
-    array_edited = np.copy(src)
-    array_edited[array_edited <= 2] = 0
-    array_dilated = cv.dilate(
-        array_edited,
-        cv.getStructuringElement(cv.MORPH_CROSS, (2 * size + 1, 2 * size + 1)),
-    )
-    return np.maximum(src, array_dilated)
-
 
 # use this function to convert raw odata coordinates to reference the defined origin
 def reference_to_origin(raw_odata_coord):
@@ -65,6 +56,20 @@ def dereference_to_origin(ref_odata_coord):
         ref_odata_coord[0] + odata_origin[0],
         ref_odata_coord[1] + odata_origin[1]
     )
+
+class CostmapSub(Node):
+    def __init__(self):
+        super().__init__('costmap_sub')
+        self.subscription = self.create_subscription(
+            OccupancyGrid,
+            '/global_costmap/costmap',
+            self.costmap_callback,
+            qos_profile_sensor_data)
+
+    def costmap_callback(self, msg):
+        global costmap
+        costmap = np.array(msg.data).reshape(msg.info.height, msg.info.width)
+        print("yes")
 
 
 class Occupy(Node):
@@ -204,7 +209,6 @@ class Occupy(Node):
         # plt.draw_all()
         # pause to make sure the plot gets created
         plt.pause(1.00000000001)
-        
         came_from, cost_so_far, final_pos = a_star_search(odata, start_pos, goal_pos)
     
 
@@ -412,6 +416,7 @@ def a_star_search(graph, start, goal):
             if next not in cost_so_far or new_cost < cost_so_far[next]:
                 cost_so_far[next] = new_cost
                 priority = new_cost + heuristic(goal, next)
+                priority += costmap[current[0]][current[1]]
                 prev = came_from[current]
                 if prev != None:
                     # next_direction = (int(next[0] - current[0]), int(next[1] - current[1]))
@@ -437,7 +442,8 @@ def first_scan():
 
 def a_star_scan(): 
     occupy = Occupy()
-
+    costmapsub = CostmapSub()
+    rclpy.spin_once(costmapsub)
     try:
         rclpy.spin(occupy)
     except SystemExit:                 # <--- process the exception 

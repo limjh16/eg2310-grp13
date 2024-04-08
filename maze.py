@@ -22,6 +22,7 @@ import scipy.stats
 from .lib.maze_manipulation import get_waypoints, dilate123
 from .lib.pid_tf2 import move_straight, move_turn
 from .lib.occupy_nodes import first_scan, a_star_scan
+from .lib.open_door_http import open_door
 
 UNKNOWN = 1
 UNOCCUPIED = 2
@@ -41,17 +42,20 @@ def main(args=None):
     plt.ion()
     plt.show()
 
-    path_main = a_star_scan()
+    for _ in range(3):
+        path_main = a_star_scan()
 
-    outwps = get_waypoints(path_main)
-    print("out waypoints: " + str(outwps))
-    for x in outwps:
-        print(x)
-        # time.sleep(2)
-        move_turn(x)
-        # time.sleep(1)
-        move_straight(x)
-        # time.sleep(1)
+        outwps = get_waypoints(path_main)
+        print("out waypoints: " + str(outwps))
+        for x in outwps:
+            print(x)
+            # time.sleep(2)
+            move_turn(x)
+            # time.sleep(1)
+            move_straight(x)
+            # time.sleep(1)
+
+    plt.close()
 
     # Destroy the node explicitly
     # (optional - otherwise it will be done automatically

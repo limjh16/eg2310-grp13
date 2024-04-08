@@ -42,3 +42,26 @@ def dilate123(src, size=1, shape=cv.MORPH_RECT):
     )
     array_dilated *= 3
     return np.maximum(src, array_dilated)
+
+def inflate(src: np.ndarray, dilate = 2, threshold = 40, inflation_radius = 4, inflation_step = 2):
+    array_dilated: np.ndarray = src.copy()
+    array_dilated[src >= threshold] = inflation_step
+    array_dilated[src < threshold] = 0
+    array_dilated = cv.dilate(
+        np.uint8(array_dilated),
+        cv.getStructuringElement(cv.MORPH_RECT, (2 * dilate + 1, 2 * dilate + 1)),
+    )
+
+    wall_indexes = np.nonzero(array_dilated)
+
+    array_inflated: np.ndarray = array_dilated.copy()
+
+    for _ in range(inflation_radius):
+        array_inflated = array_inflated + cv.dilate(np.uint8(array_dilated), cv.getStructuringElement(cv.MORPH_RECT, (3,3)))
+        array_dilated = array_inflated.copy()
+        array_dilated[array_dilated != 0] = inflation_step
+
+    array_inflated = np.int8(array_inflated)
+    array_inflated[src == -1] = -1
+    array_inflated[wall_indexes] = 100
+    return array_inflated

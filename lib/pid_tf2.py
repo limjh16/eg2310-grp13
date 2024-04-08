@@ -125,7 +125,7 @@ def move_straight(
     PID_angular: Tuple[float, float, float] = (0.5, 0, 1),
     PID_linear: Tuple[float, float, float] = (0.3, 0, 1),
     angular_speed_limit: float = 1,  # old 2.84
-    linear_speed_limit: float = 0.1,  # old 0.22
+    linear_speed_limit: float = 0.2,  # old 0.22
 ):
     """Move Straight to RViz Waypoint
 
@@ -158,7 +158,7 @@ def move_turn(
     target: Tuple[float, float],
     end_yaw_range: float = 0.05,
     PID_angular: Tuple[float, float, float] = (1, 0, 2),
-    angular_speed_limit: float = 1,  # old 2.84
+    angular_speed_limit: float = 2,  # old 2.84
 ):
     """Turn to face RViz Waypoint
 
