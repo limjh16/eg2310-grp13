@@ -20,7 +20,7 @@ import tf2_ros
 from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
 import scipy.stats
 from .lib.maze_manipulation import get_waypoints, dilate123
-from .lib.pid_tf2 import move_straight, move_turn
+from .lib.pid_tf2 import move_straight, move_turn, return_cur_pos
 from .lib.occupy_nodes import first_scan, a_star_scan, return_odata_origin
 from .lib.open_door_http import open_door
 
@@ -55,17 +55,12 @@ class mapCheck(Node):
         cdata[cdata >= 0] = 1
         cdata[cdata == -1] = 0
         no_wall_indexes = np.nonzero(cdata)
-        y_dist = np.max(no_wall_indexes[0]) - return_odata_origin()[0]
+        y_dist = np.max(no_wall_indexes[0]) - return_odata_origin()[1]
         print("distance_to_furthest:  "+str(y_dist))
         if (y_dist > (2.15 / msg.info.resolution)):
             print ("!!!!!!!!!!!!!!!!!!!!!!!exit found")
-        try:
-            trans = self.tfBuffer.lookup_transform('origin', 'base_link', rclpy.time.Time())
-        except (LookupException, ConnectivityException, ExtrapolationException) as e:
-            self.get_logger().info('No transformation found')
-            return
-        cur_pos = trans.transform.translation
-        if cur_pos.y > 2.1:
+        print( round(float(return_cur_pos().y - msg.info.origin.position.y) / msg.info.resolution)  - return_odata_origin()[1])
+        if (round(float(return_cur_pos().y - msg.info.origin.position.y) / msg.info.resolution)  - return_odata_origin()[1]) > (2.15 / msg.info.resolution):
             global quit
             quit = 1
             print("!!!!!!!!!!!!!!!!!!!!!!!!quit!!!!!!!!!!!!!!!!!!")
@@ -79,6 +74,7 @@ def main(args=None):
     # create matplotlib figure
     plt.ion()
     plt.show()
+    mapcheck = mapCheck()
 
     for _ in range(3):
         path_main = a_star_scan()
@@ -86,16 +82,16 @@ def main(args=None):
         outwps = get_waypoints(path_main)
         print("out waypoints: " + str(outwps))
         for x in outwps:
-            mapcheck = mapCheck()
-            rclpy.spin_once(mapcheck)
-            if quit:
-                break
             print(x)
             # time.sleep(2)
             move_turn(x)
+            if quit:
+                break
             # time.sleep(1)
             move_straight(x)
             # time.sleep(1)
+
+            rclpy.spin_once(mapcheck)
         if quit:
             print("quit, at maze exit")
             break

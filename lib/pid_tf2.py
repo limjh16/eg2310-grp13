@@ -57,6 +57,7 @@ class WPMover(Node):
         except (LookupException, ConnectivityException, ExtrapolationException):
             # self.get_logger().info("No transformation found")
             return
+        global cur_pos
         cur_pos, cur_rot, dx, dy = dxdy(trans,self)
         angular_speed, _ = angular(cur_pos, cur_rot, dx, dy, self)
         linear_dist = math.sqrt(dx**2 + dy**2)
@@ -211,6 +212,9 @@ def dxdy(trans,node:Node):
     # self.get_logger().info(str(cur_pos.x))
     # self.get_logger().info('Trans: %f, %f' % (cur_pos.x, cur_pos.y))
     return cur_pos, cur_rot, dx, dy
+
+def return_cur_pos():
+    return cur_pos
 
 def main(args=None):
     rclpy.init(args=args)
