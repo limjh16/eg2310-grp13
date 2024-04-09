@@ -416,7 +416,7 @@ def a_star_search(graph, start, goal):
             if next not in cost_so_far or new_cost < cost_so_far[next]:
                 cost_so_far[next] = new_cost
                 priority = new_cost + heuristic(goal, next)
-                priority += costmap[current[0]][current[1]]
+                priority += costmap[current[1]][current[0]]
                 prev = came_from[current]
                 if prev != None:
                     # next_direction = (int(next[0] - current[0]), int(next[1] - current[1]))
