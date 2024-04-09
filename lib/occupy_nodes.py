@@ -453,4 +453,5 @@ def a_star_scan():
 
     return path_main
 
-    
+def return_odata_origin():
+    return odata_origin    

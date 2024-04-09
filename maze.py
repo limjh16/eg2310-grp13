@@ -21,7 +21,7 @@ from tf2_ros import LookupException, ConnectivityException, ExtrapolationExcepti
 import scipy.stats
 from .lib.maze_manipulation import get_waypoints, dilate123
 from .lib.pid_tf2 import move_straight, move_turn
-from .lib.occupy_nodes import first_scan, a_star_scan
+from .lib.occupy_nodes import first_scan, a_star_scan, return_odata_origin
 from .lib.open_door_http import open_door
 
 UNKNOWN = 1
@@ -32,6 +32,44 @@ OCCUPIED = 3
 occ_bins = [-1, 0, 50, 100]
 path_main = []
 dilate_size = 2
+global quit
+quit = 0
+
+class mapCheck(Node):
+    def __init__(self):
+        super().__init__("mapcheck")
+        self.subscription = self.create_subscription(
+            OccupancyGrid,
+            '/global_costmap/costmap',
+            self.occ_callback,
+            10)
+        self.subscription  # prevent unused variable warning
+        # occdata = np.array([])
+        self.tfBuffer = tf2_ros.Buffer()
+        self.tfListener = tf2_ros.TransformListener(self.tfBuffer, self)
+    
+    def occ_callback(self, msg):
+        occdata = np.array(msg.data)
+        cdata = occdata.reshape(msg.info.height, msg.info.width)
+        cdata[cdata == 100] = -1
+        cdata[cdata >= 0] = 1
+        cdata[cdata == -1] = 0
+        no_wall_indexes = np.nonzero(cdata)
+        y_dist = np.max(no_wall_indexes[0]) - return_odata_origin()[0]
+        print("distance_to_furthest:  "+str(y_dist))
+        if (y_dist > (2.15 / msg.info.resolution)):
+            print ("!!!!!!!!!!!!!!!!!!!!!!!exit found")
+        try:
+            trans = self.tfBuffer.lookup_transform('origin', 'base_link', rclpy.time.Time())
+        except (LookupException, ConnectivityException, ExtrapolationException) as e:
+            self.get_logger().info('No transformation found')
+            return
+        cur_pos = trans.transform.translation
+        if cur_pos.y > 2.1:
+            global quit
+            quit = 1
+            print("!!!!!!!!!!!!!!!!!!!!!!!!quit!!!!!!!!!!!!!!!!!!")
+        
 
 def main(args=None):
     rclpy.init(args=args)
@@ -48,13 +86,21 @@ def main(args=None):
         outwps = get_waypoints(path_main)
         print("out waypoints: " + str(outwps))
         for x in outwps:
+            mapcheck = mapCheck()
+            rclpy.spin_once(mapcheck)
+            if quit:
+                break
             print(x)
             # time.sleep(2)
             move_turn(x)
             # time.sleep(1)
             move_straight(x)
             # time.sleep(1)
+        if quit:
+            print("quit, at maze exit")
+            break
 
+    # door = open_door("192.168.67.199")
     plt.close()
 
     # Destroy the node explicitly
