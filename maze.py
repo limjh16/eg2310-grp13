@@ -21,7 +21,7 @@ from tf2_ros import LookupException, ConnectivityException, ExtrapolationExcepti
 import scipy.stats
 from .lib.maze_manipulation import get_waypoints, dilate123
 from .lib.pid_tf2 import move_straight, move_turn, return_cur_pos
-from .lib.occupy_nodes import first_scan, a_star_scan, return_odata_origin
+from .lib.occupy_nodes import first_scan, a_star_scan, return_odata_origin, a_star_search
 from .lib.open_door_http import open_door
 
 UNKNOWN = 1
@@ -77,7 +77,7 @@ def main(args=None):
     mapcheck = mapCheck()
 
     for _ in range(3):
-        path_main = a_star_scan()
+        path_main = a_star_scan(0)
 
         outwps = get_waypoints(path_main)
         print("out waypoints: " + str(outwps))
@@ -95,8 +95,24 @@ def main(args=None):
         if quit:
             print("quit, at maze exit")
             break
+    
+    path_main = a_star_scan(1)
 
-    # door = open_door("192.168.67.199")
+    outwps = get_waypoints(path_main)
+    print("out waypoints: " + str(outwps))
+    for x in outwps:
+        print(x)
+        # time.sleep(2)
+        move_turn(x)
+        if quit:
+            break
+        # time.sleep(1)
+        move_straight(x)
+        # time.sleep(1)
+    
+    
+
+    door = open_door("192.168.67.")
     plt.close()
 
     # Destroy the node explicitly

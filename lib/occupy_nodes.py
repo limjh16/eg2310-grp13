@@ -73,7 +73,8 @@ class CostmapSub(Node):
 
 
 class Occupy(Node):
-    def __init__(self):
+    def __init__(self, flag):
+        self.flag = flag
         super().__init__("occupy")
         
         self.subscription = self.create_subscription(
@@ -170,24 +171,29 @@ class Occupy(Node):
                     return True
             return False
 
+        if self.flag == 0:
+            goal = (0, 0)
+            # iterate through odata to find the goal (highest y coordinate)
+            maxnum = 0
+            for row in range(odata_y):
+                for col in range(odata_x): 
+                    is_unoccupied = (odata[row][col] == 2)
+                    is_next_to_unknown = (check_neighbours(row, col, 1))
+                    # if odata[row][col] == 2 and row + col > maxnum:
+                    if row + col > maxnum and is_unoccupied and is_next_to_unknown:
+                        maxnum = row + col
+                        goal = (col, row)
+            goal_pos = reference_to_origin(goal)
 
-        goal = (0, 0)
-        # iterate through odata to find the goal (highest y coordinate)
-        maxnum = 0
-        for row in range(odata_y):
-            for col in range(odata_x): 
-                is_unoccupied = (odata[row][col] == 2)
-                is_next_to_unknown = (check_neighbours(row, col, 1))
-                # if odata[row][col] == 2 and row + col > maxnum:
-                if row + col > maxnum and is_unoccupied and is_next_to_unknown:
-                    maxnum = row + col
-                    goal = (col, row)
+        elif self.flag == 1: 
+            # x = 1.7, y = 2.9
+            goal = (1.7, 2.9)    
+            print("going between doors")
+            goal_pos =
 
-        
-
-        
+            
         # find goal_pos, the goal relative to the origin coordinates
-        goal_pos = reference_to_origin(goal)
+       
         self.get_logger().info('Goal' + str(goal_pos))
         # raise SystemExit
 
@@ -221,8 +227,10 @@ class Occupy(Node):
         4. For each of the previous coordinates, find the one with lowest cost
         5. repeat from step 2 to 4
         '''
-
-        last_pos = final_pos
+        if self.flag == 0:
+            last_pos = final_pos
+        elif self.flag == 1:
+            last_pos = goal_pos
         # create a list to store all the coordinates of the path, in reverse sequence, starting from last_pos
         path = [last_pos]
         prev_pos = 0
@@ -440,8 +448,9 @@ def first_scan():
     rclpy.spin_once(firstoccupy)
     firstoccupy.destroy_node()
 
-def a_star_scan(): 
-    occupy = Occupy()
+def a_star_scan(flag): 
+    
+    occupy = Occupy(flag)
     costmapsub = CostmapSub()
     rclpy.spin_once(costmapsub)
     try:
