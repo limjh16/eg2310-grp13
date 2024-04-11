@@ -32,6 +32,7 @@ setup(
 'utils = auto_nav.utils:main',
 'gridmap = auto_nav.gridmap:main',
             'r2maze_test = auto_nav.r2maze_test:main',
+            'jervin_rpicam = auto_nav.jervin_rpicam:main',
         ],
     },
 )

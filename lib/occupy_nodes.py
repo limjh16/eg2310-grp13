@@ -29,7 +29,7 @@ UNOCCUPIED = 2
 OCCUPIED = 3
 
 # constants
-occ_bins = [-1, 0, 50, 100]
+occ_bins = [-1, 0, 45, 100]
 path_main = []
 dilate_size = 2
 
@@ -406,7 +406,7 @@ def a_star_search(graph, start, goal):
     frontier.put((0, start))
     came_from = {start: None}
     cost_so_far = {start: 0}
-    turning_cost = 100
+    turning_cost = 20
 
     while not frontier.empty():
         (_,current) = frontier.get()
@@ -473,7 +473,7 @@ def a_star_scan():
 
     return path_main
 
-def go_to_doors():
+def go_to_doors(goal=(1.7, 2.9)):
     occupy = Occupy()
     costmapsub = CostmapSub()
     rclpy.spin_once(costmapsub)
@@ -483,15 +483,10 @@ def go_to_doors():
         rclpy.logging.get_logger("Quitting").info('Done')
     
     occupy.destroy_node()
-    path_main = get_path(curr_pos, goal_pos)
+    # path_main = get_path(curr_pos, goal_pos)
      # x = 1.7, y = 2.9
-    goal_rviz = (1.7, 2.9)
-    goal_odata = (
-
-        round(float(goal_rviz[0]) / map_resolution), 
-        round(float(goal_rviz[1]) / map_resolution) 
-    )
-    goal_odata = reference_to_origin(goal_odata)
+    goal_rviz = goal
+    goal_odata = reference_to_origin(convert_to_odata(goal_rviz))
     #     print("going between doors")
     #     goal_pos =
     path_main = get_path(curr_pos, goal_odata)

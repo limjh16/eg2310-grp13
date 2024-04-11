@@ -103,8 +103,6 @@ def main(args=None):
         print(x)
         # time.sleep(2)
         move_turn(x)
-        if quit:
-            break
         # time.sleep(1)
         move_straight(x)
         # time.sleep(1)
@@ -112,7 +110,7 @@ def main(args=None):
         rclpy.spin_once(mapcheck)
     
 
-    door = open_door("192.168.67.")
+    # door = open_door("192.168.67.")
     plt.close()
 
     # Destroy the node explicitly

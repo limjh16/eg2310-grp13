@@ -9,24 +9,6 @@ import numpy as np
 lower_red = np.array([49, 9, 55])      
 upper_red = np.array([112, 46, 255])  
 
-def change_threshold_V(v):
-    lower_red[2] = v
-
-def change_threshold_S(s):
-    lower_red[1] = s
-
-def change_threshold_H(h):
-    lower_red[0] = h
-
-def hchange_threshold_V(v):
-    upper_red[2] = v
-
-def hchange_threshold_S(s):
-    upper_red[1] = s
-
-def hchange_threshold_H(h):
-    upper_red[0] = h
-
 class ImageSubscriber(Node):
     def init(self):
         super().init('img_node')                                  
@@ -35,17 +17,9 @@ class ImageSubscriber(Node):
         self.cv_bridge = CvBridge()   
         cv2.namedWindow('image')
         self.publisher = self.create_publisher(String,'/detected_objects',10)
-        
-        # create trackbars for color change
-        cv2.createTrackbar('V','image',lower_red[2],255,change_threshold_V)
-        cv2.createTrackbar('S','image',lower_red[1],255,change_threshold_S)
-        cv2.createTrackbar('H','image',lower_red[0],179,change_threshold_H)
-        cv2.createTrackbar('hV','image',upper_red[2],255,hchange_threshold_V)
-        cv2.createTrackbar('hS','image',upper_red[1],255,hchange_threshold_S)
-        cv2.createTrackbar('hH','image',upper_red[0],179,hchange_threshold_H)
+        self.contour_publisher = self.create_publisher(CompressedImage, '/camera/image/compressed_with_objects', 10)
 
-    def object_detect(self, image):
-        hsv_img = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)   
+    def object_detect(self, image, data):
         mask_red = cv2.inRange(image, lower_red, upper_red) 
         contours, hierarchy = cv2.findContours(
             mask_red, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)     
@@ -61,13 +35,20 @@ class ImageSubscriber(Node):
             
             message = f"({centre_x},{centre_y})"
             self.publisher.publish(String(data=message))
+        
+        cmp_img = self.cv_bridge.cv2_to_compressed_imgmsg(image)
+        out_node = CompressedImage()
+        out_node.header = data.header
+        out_node.format = data.format
+        out_node.data = cmp_img
+        self.publisher.publish(out_node)
 
         cv2.imshow('image', image)                             
         cv2.waitKey(10)
 
     def listener_callback(self, data):    
         image = self.cv_bridge.compressed_imgmsg_to_cv2(data, 'bgr8')     
-        self.object_detect(image)                               
+        self.object_detect(image, data)                               
 
 
 def main(args=None):                                        
@@ -77,5 +58,5 @@ def main(args=None):
     node.destroy_node()                                     
     rclpy.shutdown()  
 
-if name=='main':
+if __name__=='main':
     main()
