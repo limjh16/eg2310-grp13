@@ -43,13 +43,22 @@ def dilate123(src, size=1, shape=cv.MORPH_RECT):
     array_dilated *= 3
     return np.maximum(src, array_dilated)
 
-def inflate(src: np.ndarray, dilate = 2, threshold = 40, inflation_radius = 4, inflation_step = 2):
+def inflate(src: np.ndarray, dilate = 2, threshold = 40, inflation_radius = 4, inflation_step = 2, erode = 2):
+    array_eroded: np.ndarray = src.copy()
+    array_eroded[src == -1] = 1
+    array_eroded[src != -1] = 0
+    array_eroded = cv.morphologyEx(
+        np.uint8(array_eroded),
+        cv.MORPH_CLOSE,
+        cv.getStructuringElement(cv.MORPH_RECT, (2 * erode + 1, 2 * erode + 1))
+    ) # Dilate then erode the unknown points, to get rid of stray wall and stray unoccupied points
+
     array_dilated: np.ndarray = src.copy()
     array_dilated[src >= threshold] = inflation_step
     array_dilated[src < threshold] = 0
     array_dilated = cv.dilate(
         np.uint8(array_dilated),
-        cv.getStructuringElement(cv.MORPH_RECT, (2 * dilate + 1, 2 * dilate + 1)),
+        cv.getStructuringElement(cv.MORPH_RECT, (2 * dilate + 1, 2 * dilate + 1))
     )
 
     wall_indexes = np.nonzero(array_dilated)
@@ -62,6 +71,6 @@ def inflate(src: np.ndarray, dilate = 2, threshold = 40, inflation_radius = 4, i
         array_dilated[array_dilated != 0] = inflation_step
 
     array_inflated = np.int8(array_inflated)
-    array_inflated[src == -1] = -1
+    array_inflated[array_eroded == 1] = -1
     array_inflated[wall_indexes] = 100
     return array_inflated
