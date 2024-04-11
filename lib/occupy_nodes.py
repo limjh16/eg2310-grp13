@@ -71,10 +71,55 @@ class CostmapSub(Node):
         costmap = np.array(msg.data).reshape(msg.info.height, msg.info.width)
         print("yes")
 
+# use this function to convert from rviz coordinates to odata coordinates
+def convert_to_rviz(odata_coord):
+    """ Scaling of odata (x, y) coordinates to rviz (x, y) coordinates in meters
+    Args: 
+        odata_coord (tuple): (x, y) coordinates in odata
+    Returns:
+        tuple: (x, y) coordinates in rviz, in meters"""
+    rviz = (
+    odata_coord[0] * map_resolution + origin_pos_x,
+    odata_coord[1] * map_resolution + origin_pos_y,
+    )
+    return rviz
+# use this function to convert from odata coordinates to rviz coordinates
+def convert_to_odata(rviz):
+    """ Scaling of rviz (x, y) coordinates in meters to odata (x, y) coordinates
+    Args: 
+        rviz (tuple): (x, y) coordinates in rviz
+    Returns: 
+        tuple: (x, y) coordinates in odata"""
+    odata_coord = (
+
+        round(float(rviz[0] - origin_pos_x) / map_resolution), 
+        round(float(rviz[1] - origin_pos_y) / map_resolution) 
+    )
+    return odata_coord
+
+# this is used to check if a point is next to an unoccupied area
+def check_neighbours(row, col, checknum):
+        directions = [
+            (1, 0), #right
+            (0, 1), #forward
+            (-1, 0), #left
+            (0, -1), #back
+            (1, 1), 
+            (-1, 1),
+            (-1, -1),
+            (1, -1)
+            ]
+        for direction in directions:
+            new_col = col + direction[0]
+            new_row = row + direction[1]
+            is_in_map = (new_row < odata_y and new_col < odata_x and new_row > 0 and new_col > 0)
+            is_checknum = is_in_map and (odata[new_row][new_col] == checknum)
+            if is_checknum:
+                return True
+        return False
 
 class Occupy(Node):
-    def __init__(self, flag):
-        self.flag = flag
+    def __init__(self):
         super().__init__("occupy")
         
         self.subscription = self.create_subscription(
@@ -86,33 +131,15 @@ class Occupy(Node):
         self.tfListener = tf2_ros.TransformListener(self.tfBuffer, self)
 
     def occ_callback(self, msg):
-
-        # use this function to convert from rviz coordinates to odata coordinates
-        def convert_to_rviz(odata_coord):
-            """ Scaling of odata (x, y) coordinates to rviz (x, y) coordinates in meters
-            Args: 
-                odata_coord (tuple): (x, y) coordinates in odata
-            Returns:
-                tuple: (x, y) coordinates in rviz, in meters"""
-            rviz = (
-            odata_coord[0] * msg.info.resolution + msg.info.origin.position.x,
-            odata_coord[1] * msg.info.resolution + msg.info.origin.position.y,
-            )
-            return rviz
-        # use this function to convert from odata coordinates to rviz coordinates
-        def convert_to_odata(rviz):
-            """ Scaling of rviz (x, y) coordinates in meters to odata (x, y) coordinates
-            Args: 
-                rviz (tuple): (x, y) coordinates in rviz
-            Returns: 
-                tuple: (x, y) coordinates in odata"""
-            odata_coord = (
-
-                round(float(rviz[0] - msg.info.origin.position.x) / msg.info.resolution), 
-                round(float(rviz[1] - msg.info.origin.position.y) / msg.info.resolution) 
-            )
-            return odata_coord
-
+        global map_resolution
+        global origin_pos_x
+        global origin_pos_y
+        
+        map_resolution = msg.info.resolution
+        origin_pos_x = msg.info.origin.position.x
+        origin_pos_y = msg.info.origin.position.y
+        
+        
         # the process for obtaining odata (the occupancy grid)
         occdata = np.array(msg.data)
         _, _, binnum = scipy.stats.binned_statistic(
@@ -122,9 +149,10 @@ class Occupy(Node):
         global odata
         odata = np.uint8(binnum.reshape(msg.info.height, msg.info.width))
 
-        dilate_size = int((0.243/2)//msg.info.resolution)
+        dilate_size = int((0.3/2)//msg.info.resolution)
         odata = dilate123(odata, size=dilate_size)
         # Robot is 0.243m at its longest, divide by 2 to get radius, divide by resolution to change to odata coords, no need to +1 since walls aren't 5cm
+        global odata_x, odata_y
         (odata_y, odata_x) = odata.shape
         self.get_logger().info("maze dilated")
 
@@ -148,48 +176,25 @@ class Occupy(Node):
         self.get_logger().info('curr_pos_odata: ' + str(curr_pos_odata))
 
         # current position of turtlebot in odata, with reference to origin 
+        global curr_pos
         curr_pos = reference_to_origin(curr_pos_odata)
         self.get_logger().info('Current' + str(curr_pos))
 
-        def check_neighbours(row, col, checknum):
-            directions = [
-                (1, 0), #right
-                (0, 1), #forward
-                (-1, 0), #left
-                (0, -1), #back
-                (1, 1), 
-                (-1, 1),
-                (-1, -1),
-                (1, -1)
-                ]
-            for direction in directions:
-                new_col = col + direction[0]
-                new_row = row + direction[1]
-                is_in_map = (new_row < odata_y and new_col < odata_x and new_row > 0 and new_col > 0)
-                is_checknum = is_in_map and (odata[new_row][new_col] == checknum)
-                if is_checknum:
-                    return True
-            return False
+        global goal_pos
+       
+        goal = (0, 0)
+        # iterate through odata to find the goal (highest y coordinate)
+        maxnum = 0
+        for row in range(odata_y):
+            for col in range(odata_x): 
+                is_unoccupied = (odata[row][col] == 2)
+                is_next_to_unknown = (check_neighbours(row, col, 1))
+                # if odata[row][col] == 2 and row + col > maxnum:
+                if row + col > maxnum and is_unoccupied and is_next_to_unknown:
+                    maxnum = row + col
+                    goal = (col, row)
+        goal_pos = reference_to_origin(goal)
 
-        if self.flag == 0:
-            goal = (0, 0)
-            # iterate through odata to find the goal (highest y coordinate)
-            maxnum = 0
-            for row in range(odata_y):
-                for col in range(odata_x): 
-                    is_unoccupied = (odata[row][col] == 2)
-                    is_next_to_unknown = (check_neighbours(row, col, 1))
-                    # if odata[row][col] == 2 and row + col > maxnum:
-                    if row + col > maxnum and is_unoccupied and is_next_to_unknown:
-                        maxnum = row + col
-                        goal = (col, row)
-            goal_pos = reference_to_origin(goal)
-
-        elif self.flag == 1: 
-            # x = 1.7, y = 2.9
-            goal = (1.7, 2.9)    
-            print("going between doors")
-            goal_pos =
 
             
         # find goal_pos, the goal relative to the origin coordinates
@@ -198,76 +203,80 @@ class Occupy(Node):
         # raise SystemExit
 
         # EVERYTHING SHOULD NOW BE CONVERTED TO ODATA COORDINATES
-
-        start_pos = curr_pos
-        
-
-        # mark the curr_pos and goal on the 2D array (need to print absolute coordinates, not with reference to defined origin)
-        odata[int(curr_pos[1] + odata_origin[1]), int(curr_pos[0] + odata_origin[0])] = 4 # curr_pos
-        odata[int(goal_pos[1] + odata_origin[1]), int(goal_pos[0] + odata_origin[0])] = 4
-
-        self.get_logger().info("finding path...")
-
-        # create image from 2D array using PIL
-        # img = Image.fromarray(odata)
-        # show the image using grayscale map
-        plt.imshow(odata, cmap="gray", origin="lower")
-        # plt.draw_all()
-        # pause to make sure the plot gets created
-        plt.pause(1.00000000001)
-        came_from, cost_so_far, final_pos = a_star_search(odata, start_pos, goal_pos)
+        # exit this node once start and goal is found
+        raise SystemExit
     
 
-        '''
-        So the goal is found alr
-        coordinates of goal is somewhere in came_from and cost_to_goal
-        1. Find GOAL as a key in came_from
-        2. Add GOAL into path[]
-        3. Find the values to find previous coordinates
-        4. For each of the previous coordinates, find the one with lowest cost
-        5. repeat from step 2 to 4
-        '''
-        if self.flag == 0:
-            last_pos = final_pos
-        elif self.flag == 1:
-            last_pos = goal_pos
-        # create a list to store all the coordinates of the path, in reverse sequence, starting from last_pos
-        path = [last_pos]
-        prev_pos = 0
-        # loop to find all points in the path until the start_pos is reached, append the path list whenever the next point is found
-        while prev_pos != (start_pos[0], start_pos[1]):
-            prev_pos = came_from[last_pos]
-            last_pos = prev_pos
-            path.append(last_pos)
-        # reverse the order of the list, such that the path starts from start_pos
-        path.reverse()
-        # declare an empty array to store the rviz coordinates of the path, to be used to move the robot
-        path_rviz = []
-        self.get_logger().info(str(path))
 
-        #loop for every point in path to convert to rviz coordinates to be stored in path_rviz
-        for point in path:
-            map_point = dereference_to_origin(point)
-            odata[map_point[1]][map_point[0]] = 4
-            point_rviz = convert_to_rviz(map_point)
-            path_rviz.append((round(point_rviz[0], 4), round(point_rviz[1], 4)))
+def get_path(start, goal):
+    # start_pos = curr_pos
+    
 
-        self.get_logger().info(str(path_rviz))
-        global path_main
-        path_main = path_rviz
-        
-        # create image from 2D array using PIL
-        # img = Image.fromarray(odata)
-        # show the image using grayscale map
-        plt.imshow(odata, cmap="gray", origin="lower")
-        # plt.draw_all()
-        # pause to make sure the plot gets created
-        plt.pause(1.00000000001)
-        
-        
-        # exit this node once path found
-        raise SystemExit
-        
+    # mark the curr_pos and goal on the 2D array (need to print absolute coordinates, not with reference to defined origin)
+    odata[int(curr_pos[1] + odata_origin[1]), int(curr_pos[0] + odata_origin[0])] = 4 # curr_pos
+    odata[int(goal_pos[1] + odata_origin[1]), int(goal_pos[0] + odata_origin[0])] = 4
+
+    print("finding path...")
+
+    # create image from 2D array using PIL
+    # img = Image.fromarray(odata)
+    # show the image using grayscale map
+    plt.imshow(odata, cmap="gray", origin="lower")
+    # plt.draw_all()
+    # pause to make sure the plot gets created
+    plt.pause(1.00000000001)
+    came_from, cost_so_far, final_pos = a_star_search(odata, start, goal)
+
+
+    '''
+    So the goal is found alr
+    coordinates of goal is somewhere in came_from and cost_to_goal
+    1. Find GOAL as a key in came_from
+    2. Add GOAL into path[]
+    3. Find the values to find previous coordinates
+    4. For each of the previous coordinates, find the one with lowest cost
+    5. repeat from step 2 to 4
+    '''
+    
+    last_pos = final_pos
+    # create a list to store all the coordinates of the path, in reverse sequence, starting from last_pos
+    path = [last_pos]
+    prev_pos = 0
+    # loop to find all points in the path until the start_pos is reached, append the path list whenever the next point is found
+    while prev_pos != (start[0], start[1]):
+        prev_pos = came_from[last_pos]
+        last_pos = prev_pos
+        path.append(last_pos)
+    # reverse the order of the list, such that the path starts from start_pos
+    path.reverse()
+    # declare an empty array to store the rviz coordinates of the path, to be used to move the robot
+    path_rviz = []
+    print(str(path))
+
+    #loop for every point in path to convert to rviz coordinates to be stored in path_rviz
+    for point in path:
+        map_point = dereference_to_origin(point)
+        odata[map_point[1]][map_point[0]] = 4
+        point_rviz = convert_to_rviz(map_point)
+        path_rviz.append((round(point_rviz[0], 4), round(point_rviz[1], 4)))
+
+    print(str(path_rviz))
+    # global path_main
+    # path_main = path_rviz
+    
+    # create image from 2D array using PIL
+    # img = Image.fromarray(odata)
+    # show the image using grayscale map
+    plt.imshow(odata, cmap="gray", origin="lower")
+    # plt.draw_all()
+    # pause to make sure the plot gets created
+    plt.pause(1.00000000001)
+    return path_rviz
+    
+    # # exit this node once path found
+    
+    # raise SystemExit
+    
 
 
 class FirstOccupy(Node):
@@ -448,9 +457,24 @@ def first_scan():
     rclpy.spin_once(firstoccupy)
     firstoccupy.destroy_node()
 
-def a_star_scan(flag): 
+def a_star_scan(): 
     
-    occupy = Occupy(flag)
+    occupy = Occupy()
+    costmapsub = CostmapSub()
+    rclpy.spin_once(costmapsub)
+    try:
+        rclpy.spin(occupy)
+    except SystemExit:                 # <--- process the exception 
+        rclpy.logging.get_logger("Quitting").info('Done')
+        
+    
+    occupy.destroy_node()
+    path_main = get_path(curr_pos, goal_pos)
+
+    return path_main
+
+def go_to_doors():
+    occupy = Occupy()
     costmapsub = CostmapSub()
     rclpy.spin_once(costmapsub)
     try:
@@ -459,7 +483,18 @@ def a_star_scan(flag):
         rclpy.logging.get_logger("Quitting").info('Done')
     
     occupy.destroy_node()
+    path_main = get_path(curr_pos, goal_pos)
+     # x = 1.7, y = 2.9
+    goal_rviz = (1.7, 2.9)
+    goal_odata = (
 
+        round(float(goal_rviz[0]) / map_resolution), 
+        round(float(goal_rviz[1]) / map_resolution) 
+    )
+    goal_odata = reference_to_origin(goal_odata)
+    #     print("going between doors")
+    #     goal_pos =
+    path_main = get_path(curr_pos, goal_odata)
     return path_main
 
 def return_odata_origin():
