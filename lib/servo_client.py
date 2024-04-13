@@ -20,15 +20,15 @@ class ServoClientAsync(Node):
         rclpy.spin_until_future_complete(self, self.future)
         return self.future.result()
 
-
-def main():
-    rclpy.init()
-
+def launch_servo():
     minimal_client = ServoClientAsync()
     response = minimal_client.send_request(True)
     minimal_client.get_logger().info(response.message)
-
     minimal_client.destroy_node()
+
+def main():
+    rclpy.init()
+    launch_servo()
     rclpy.shutdown()
 
 
