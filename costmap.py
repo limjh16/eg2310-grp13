@@ -20,6 +20,7 @@ class Costmap(Node):
 
     def listener_callback(self, msg):
         occdata = np.array(msg.data)
+        # np.savetxt("map.txt",occdata.reshape(msg.info.height, msg.info.width),"%d")
         odata = inflate(
             occdata.reshape(msg.info.height, msg.info.width),
             dilate=int((0.243 / 2) // msg.info.resolution + 1),
