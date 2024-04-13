@@ -443,8 +443,8 @@ def a_star_search(graph, start, goal):
     frontier.put((0, start))
     came_from = {start: None}
     cost_so_far = {start: 0}
-    turning_cost = 20
-    final_pos = 0; # initialise final_pos variable, if 0 is returned then a clear path is not found
+    turning_cost = 5
+    final_pos = 0 # initialise final_pos variable, if 0 is returned then a clear path is not found
 
     while not frontier.empty():
         (_,current) = frontier.get()

@@ -76,18 +76,19 @@ def main(args=None):
     plt.show()
     mapcheck = mapCheck()
 
-   
-    for _ in range(3):
+
+    for _ in range(15):
         path_main = a_star_scan()
 
         outwps = get_waypoints(path_main)
         print("out waypoints: " + str(outwps))
+        time_start = time.time()
         for x in outwps:
             print(x)
             # time.sleep(2)
-            move_turn(x)
-            if quit:
+            if quit or time.time()-time_start > 20:
                 break
+            move_turn(x, end_yaw_range=0.13, PID_angular=(2,0,4))
             # time.sleep(1)
             move_straight(x)
             # time.sleep(1)
