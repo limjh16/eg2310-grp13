@@ -523,6 +523,7 @@ def a_star_scan():
     return path_main
 
 def go_to_doors(goal=(1.7, 2.9)):
+    print("Going to doors!!!")
     occupy = Occupy()
     # costmapsub = CostmapSub()
     # rclpy.spin_once(costmapsub)
