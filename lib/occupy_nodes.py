@@ -216,14 +216,14 @@ def get_goal(col_start, row_start):
     # maxnum = 0
     width = odata_x
     height = odata_y
-    goal = 0
+    goal = (0, 0)
     row = row_start
-    while goal == 0 and row >= 0:
+    while goal == (0, 0) and row >= 0:
         # print("Scanning row " + str(row))
         
         # start iterating from the last found goal
         if row == row_start:
-            while goal == 0 and col_start >= 0:
+            while goal == (0, 0) and col_start >= 0:
                 # print("scanning col " + str(col))
                 is_unoccupied = (odata[row][col_start] == 2)
                 # print("is unoccupied? " + str(is_unoccupied))
@@ -236,7 +236,7 @@ def get_goal(col_start, row_start):
         # once row containing last found goal has been fully searched, search the rest of the rows
         else: 
             col = width - 1
-            while goal == 0 and col >= 0:
+            while goal == (0, 0) and col >= 0:
                 # print("scanning col " + str(col))
                 is_unoccupied = (odata[row][col] == 2)
                 # print("is unoccupied? " + str(is_unoccupied))
@@ -257,7 +257,7 @@ def get_path(start, goal):
 
     # mark the curr_pos and goal on the 2D array (need to print absolute coordinates, not with reference to defined origin)
     odata[int(curr_pos[1] + odata_origin[1]), int(curr_pos[0] + odata_origin[0])] = 4 # curr_pos
-    odata[int(goal[1] + odata_origin[1]), int(goal[0] + odata_origin[0])] = 4
+    odata[int(goal[1]) + odata_origin[1], int(goal[0] + odata_origin[0])] = 4
 
     print("finding path...")
 
@@ -536,10 +536,13 @@ def go_to_doors(goal=(1.7, 2.9)):
     # path_main = get_path(curr_pos, goal_pos)
      # x = 1.7, y = 2.9
     goal_rviz = goal
-    goal_odata = reference_to_origin(convert_to_odata(goal_rviz))
+    print("goal_rviz: " + str(goal_rviz))
+    goal_odata = reference_to_origin(reference_to_origin(convert_to_odata(goal_rviz)))
+    print("goal_odata" + str(goal_odata))
     #     print("going between doors")
     #     goal_pos =
     path_main = get_path(curr_pos, goal_odata)
+    print(str(path_main))
     return path_main
 
 def return_odata_origin():
