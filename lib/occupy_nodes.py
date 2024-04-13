@@ -29,7 +29,7 @@ UNOCCUPIED = 2
 OCCUPIED = 3
 
 # constants
-occ_bins = [-1, 0, 45, 100]
+occ_bins = [-1, 0, 60, 100]
 path_main = []
 dilate_size = 2
 
@@ -123,7 +123,7 @@ class Occupy(Node):
         super().__init__("occupy")
         
         self.subscription = self.create_subscription(
-            OccupancyGrid, "map", self.occ_callback, qos_profile_sensor_data
+            OccupancyGrid, "/global_costmap/costmap", self.occ_callback, qos_profile_sensor_data
         )
         self.subscription  # prevent unused variable warning
         # occdata = np.array([])
@@ -138,23 +138,28 @@ class Occupy(Node):
         map_resolution = msg.info.resolution
         origin_pos_x = msg.info.origin.position.x
         origin_pos_y = msg.info.origin.position.y
-        
-        
+
+        global costmap
+        costmap = np.array(msg.data).reshape(msg.info.height, msg.info.width)
         # the process for obtaining odata (the occupancy grid)
         occdata = np.array(msg.data)
-        _, _, binnum = scipy.stats.binned_statistic(
-            occdata, np.nan, statistic="count", bins=occ_bins
-        )
+        # _, _, binnum = scipy.stats.binned_statistic(
+        #     occdata, np.nan, statistic="count", bins=occ_bins
+        # )
         # make odata a global variable to be accessible by all functions
+        binnum = occdata.copy()
+        binnum[occdata == -1] = 1
+        binnum[occdata >= 0] = 2
+        binnum[occdata == 100] = 3
         global odata
         odata = np.uint8(binnum.reshape(msg.info.height, msg.info.width))
 
-        dilate_size = int((0.3/2)//msg.info.resolution)
-        odata = dilate123(odata, size=dilate_size)
+        # dilate_size = int((0.243/2)//msg.info.resolution)
+        # odata = dilate123(odata, size=dilate_size)
         # Robot is 0.243m at its longest, divide by 2 to get radius, divide by resolution to change to odata coords, no need to +1 since walls aren't 5cm
         global odata_x, odata_y
         (odata_y, odata_x) = odata.shape
-        self.get_logger().info("maze dilated")
+        # self.get_logger().info("maze dilated")
 
         # obtain the rviz coordinates of the turtlebot
         # usually requires the Occupy() node to spin more than once
@@ -460,8 +465,8 @@ def first_scan():
 def a_star_scan(): 
     
     occupy = Occupy()
-    costmapsub = CostmapSub()
-    rclpy.spin_once(costmapsub)
+    # costmapsub = CostmapSub()
+    # rclpy.spin_once(costmapsub)
     try:
         rclpy.spin(occupy)
     except SystemExit:                 # <--- process the exception 
@@ -475,8 +480,8 @@ def a_star_scan():
 
 def go_to_doors(goal=(1.7, 2.9)):
     occupy = Occupy()
-    costmapsub = CostmapSub()
-    rclpy.spin_once(costmapsub)
+    # costmapsub = CostmapSub()
+    # rclpy.spin_once(costmapsub)
     try:
         rclpy.spin(occupy)
     except SystemExit:                 # <--- process the exception 
