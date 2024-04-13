@@ -23,6 +23,8 @@ from .lib.maze_manipulation import get_waypoints, dilate123
 from .lib.pid_tf2 import move_straight, move_turn, return_cur_pos
 from .lib.occupy_nodes import first_scan, a_star_scan, return_odata_origin, a_star_search, go_to_doors
 from .lib.open_door_http import open_door
+from .lib.bucket_utils import move_to_bucket
+from .lib.servo_client import launch_servo
 
 UNKNOWN = 1
 UNOCCUPIED = 2
@@ -112,8 +114,11 @@ def main(args=None):
         rclpy.spin_once(mapcheck)
     
 
-    # door = open_door("192.168.67.")
     plt.close()
+
+    # door = open_door("192.168.67.")
+    # move_to_bucket()
+    # launch_servo()
 
     # Destroy the node explicitly
     # (optional - otherwise it will be done automatically

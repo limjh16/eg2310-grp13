@@ -2,9 +2,19 @@ import math
 import warnings
 import numpy as np
 import rclpy
+import rclpy.duration
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import LaserScan
+from geometry_msgs.msg import TransformStamped
+import tf2_ros
+from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
+from .tf2_quat_utils import (
+    euler_from_quaternion,
+    quaternion_from_euler,
+    quaternion_multiply,
+)
+from .pid_tf2 import move_straight, move_turn
 
 
 def check_bucket(
@@ -129,31 +139,118 @@ class BucketScanner(Node):
         # self.lidar_ranges[self.lidar_ranges == 0] = np.nan  # replace 0's with nan
         self.lidar_ranges[np.isnan(self.lidar_ranges)] = 0
         if self.angle_increment is None:
-            self.angle_increment = (
-                msg.angle_increment
-            )  # @TODO need to check if this is variable...
+            self.angle_increment = msg.angle_increment
 
-    def run_check(self, iter=1):
-        if iter != 1:
-            for _ in range(iter):
+    def pub_bucket(self, iter=5):
+        self.tfBuffer = tf2_ros.Buffer()
+        self.tfListener = tf2_ros.TransformListener(self.tfBuffer, self)
+        self.tf_static_broadcaster = tf2_ros.StaticTransformBroadcaster(self)
+        cnt = 0
+        fail_cnt = 0
+        avg_angle = 0
+        avg_dist = 0
+        while cnt < iter:
+            if self.run_check() is None:
+                fail_cnt += 1
+                if fail_cnt >= iter:
+                    print("No Bucket Found!")
+                    return None
+            else:
+                cnt += 1
+                avg_angle += self.angle
+                avg_dist += self.lidar_ranges[int(self.angle / self.angle_increment)]
+                print(
+                    "Angle: "
+                    + str(self.angle)
+                    + " | Dist: "
+                    + str(self.lidar_ranges[int(self.angle / self.angle_increment)])
+                )
+        avg_angle /= iter
+        avg_dist /= iter
+        avg_angle = np.arctan2(
+            np.sin(-avg_angle), np.cos(-avg_angle)
+        )  # https://stackoverflow.com/a/2321125
+        avg_dist += self.bucket_radius
+        print("Avg Angle: " + str(avg_angle) + " | Avg Dist: " + str(avg_dist))
+
+        while True:
+            try:
                 rclpy.spin_once(self)
-                if self.averaged_ranges is None:
-                    self.averaged_ranges = self.lidar_ranges
-                else:
-                    self.averaged_ranges += self.lidar_ranges
-            self.averaged_ranges /= iter
-        else:
-            rclpy.spin_once(self)
-            self.averaged_ranges = self.lidar_ranges
+                trans = self.tfBuffer.lookup_transform(
+                    "map",
+                    "base_scan",
+                    rclpy.time.Time(),
+                    timeout=rclpy.duration.Duration(seconds=0.2),
+                )
+                break
+            except (
+                LookupException,
+                ConnectivityException,
+                ExtrapolationException,
+            ) as e:
+                self.get_logger().info("No transformation found " + str(e))
+        cur_pos = trans.transform.translation
+        cur_rot = trans.transform.rotation
+        # _, _, scan_yaw = euler_from_quaternion(
+        #     cur_rot.x, cur_rot.y, cur_rot.z, cur_rot.w
+        # )
+        q_r = quaternion_from_euler(0, 0, avg_angle)
+        q_2 = quaternion_multiply(q_r, (cur_rot.x, cur_rot.y, cur_rot.z, cur_rot.w))
+        # bucket_yaw_from_scan = scan_yaw - avg_angle
+        _, _, bucket_yaw_from_scan = euler_from_quaternion(*q_2)
+        dx = avg_dist * np.cos(bucket_yaw_from_scan)
+        dy = avg_dist * np.sin(bucket_yaw_from_scan)
+        self.bucket_pos = (cur_pos.x + dx, cur_pos.y + dy)
+        # print(
+        #     "dxdy: "
+        #     + str((dx, dy))
+        #     + " | bucket yaw: "
+        #     + str(bucket_yaw_from_scan)
+        #     + " | robot yaw: "
+        #     + str(scan_yaw)
+        # )
+
+        t = TransformStamped()
+
+        t.header.stamp = self.get_clock().now().to_msg()
+        t.header.frame_id = "map"
+        t.child_frame_id = "bucket"
+
+        t.transform.translation.x = self.bucket_pos[0]
+        t.transform.translation.y = self.bucket_pos[1]
+        t.transform.translation.z = 0.0
+        t.transform.rotation.x = 0.0
+        t.transform.rotation.y = 0.0
+        t.transform.rotation.z = 0.0
+        t.transform.rotation.w = 1.0
+
+        self.tf_static_broadcaster.sendTransform(t)
+        return 1
+
+    def move_to_bucket(self, dist=0.28):
+        print(dist)
+        move_turn(self.bucket_pos, end_yaw_range=0.03)
+        move_straight(self.bucket_pos, end_distance_range=dist)
+
+    def run_check(self):
+        rclpy.spin_once(self)
 
         self.angle = check_bucket_lidar(
-            self.averaged_ranges,
+            self.lidar_ranges,
             self.angle_increment,
             self.threshold,
             self.bucket_radius,
         )
         # np.savetxt("lidar_bucket.txt", self.averaged_ranges, "%0.5f")
         return self.angle
+
+
+def move_to_bucket(threshold=0.04, dist=0.28, iter=5, bucket_radius=0.135):
+    bucket_scanner = BucketScanner(threshold=threshold, bucket_radius=bucket_radius)
+    # print(bucket_scanner.run_check())  # On actual robot, angle_increment always changes
+    if bucket_scanner.pub_bucket(iter=iter) is not None:
+        bucket_scanner.move_to_bucket(dist=dist)
+    bucket_scanner.destroy_node()
 
 
 def main(args=None):
@@ -170,11 +267,7 @@ def main(args=None):
     # )
 
     rclpy.init(args=args)
-    bucket_scanner = BucketScanner(threshold=0.04)  # , bucket_radius=0.2286)
-    print(
-        bucket_scanner.run_check(iter=1)
-    )  # On actual robot, angle_increment always changes
-    bucket_scanner.destroy_node()
+    move_to_bucket()  # bucket_radius=0.2286)
     rclpy.shutdown()
 
 
