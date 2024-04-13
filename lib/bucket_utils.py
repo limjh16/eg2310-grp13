@@ -12,7 +12,7 @@ def check_bucket(
     b: float,
     theta: math.radians,
     threshold: float = 0.03,
-    bucket_radius: float = 0.17,
+    bucket_radius: float = 0.135,
 ) -> bool:
     """Check if the given LiDAR distance / angle is shooting at the EG2310 bucket
 
@@ -21,7 +21,7 @@ def check_bucket(
         b (float (in meters)): Selected test point at theta rad away from shortest perpendicular distance
         theta (math.radians): Angle in radians away from the shortest distance angle
         threshold (float (in meters), optional): Margin for error when checking. Defaults to 0.03.
-        bucket_radius (float (in meters), optional): Radius of bucket, just in case changes need to be made. Defaults to 0.17.
+        bucket_radius (float (in meters), optional): Radius of bucket, just in case changes need to be made. Defaults to 0.135.
 
     Returns:
         bool: True or not, if it matches expected bucket dimension
@@ -44,7 +44,7 @@ def check_bucket_lidar(
     lidar_ranges: np.ndarray,
     angle_increment: math.radians,
     threshold: float = 0.03,
-    bucket_radius: float = 0.17,
+    bucket_radius: float = 0.135,
 ) -> math.radians:
     """Return angle of bucket given a LiDAR ranges array
 
@@ -52,7 +52,7 @@ def check_bucket_lidar(
         lidar_ranges (np.ndarray): obtain from msg.ranges
         angle_increment (math.radians): How much each array index represents in angle increments
         threshold (float (in meters), optional): Margin for error when checking. Defaults to 0.03.
-        bucket_radius (float (in meters), optional): Radius of bucket, just in case changes need to be made. Defaults to 0.17.
+        bucket_radius (float (in meters), optional): Radius of bucket, just in case changes need to be made. Defaults to 0.135.
 
     Returns:
         math.radians: Angle of center of bucket
@@ -79,10 +79,11 @@ def check_bucket_lidar(
                     lidar_ranges[target_index_plus],
                     lidar_ranges[target_index_minus],
                 }
-                & {np.nan, np.inf}
+                & {np.inf}
             ):
                 exit = False
                 break
+            # @TODO add a check for if range = 0 (i.e. if range = nan), so that we are still able to use the other adjacent ranges
             left_check = check_bucket(
                 lidar_ranges[i],
                 lidar_ranges[target_index_plus],
@@ -106,12 +107,12 @@ def check_bucket_lidar(
 
 
 class BucketScanner(Node):
-    def __init__(self, threshold: float = 0.03, bucket_radius: float = 0.17):
+    def __init__(self, threshold: float = 0.03, bucket_radius: float = 0.135):
         """Spin Node to obtain current LiDAR data and check for bucket
 
         Args:
             threshold (float (in meters), optional): Margin for error when checking. Defaults to 0.03.
-            bucket_radius (float (in meters), optional): Radius of bucket, just in case changes need to be made. Defaults to 0.17.
+            bucket_radius (float (in meters), optional): Radius of bucket, just in case changes need to be made. Defaults to 0.135.
         """
         super().__init__("bucket_scanner")
         self.subscription = self.create_subscription(
@@ -125,13 +126,14 @@ class BucketScanner(Node):
 
     def listener_callback(self, msg):
         self.lidar_ranges = np.array(msg.ranges)
-        self.lidar_ranges[self.lidar_ranges == 0] = np.nan  # replace 0's with nan
+        # self.lidar_ranges[self.lidar_ranges == 0] = np.nan  # replace 0's with nan
+        self.lidar_ranges[np.isnan(self.lidar_ranges)] = 0
         if self.angle_increment is None:
             self.angle_increment = (
                 msg.angle_increment
             )  # @TODO need to check if this is variable...
 
-    def run_check(self, iter=5):
+    def run_check(self, iter=1):
         if iter != 1:
             for _ in range(iter):
                 rclpy.spin_once(self)
@@ -150,7 +152,7 @@ class BucketScanner(Node):
             self.threshold,
             self.bucket_radius,
         )
-        np.savetxt("lidar_bucket.txt", self.averaged_ranges, "%0.5f")
+        # np.savetxt("lidar_bucket.txt", self.averaged_ranges, "%0.5f")
         return self.angle
 
 
@@ -168,8 +170,10 @@ def main(args=None):
     # )
 
     rclpy.init(args=args)
-    bucket_scanner = BucketScanner(threshold=0.04, bucket_radius=0.2286)
-    print(bucket_scanner.run_check())
+    bucket_scanner = BucketScanner(threshold=0.04)  # , bucket_radius=0.2286)
+    print(
+        bucket_scanner.run_check(iter=1)
+    )  # On actual robot, angle_increment always changes
     bucket_scanner.destroy_node()
     rclpy.shutdown()
 
