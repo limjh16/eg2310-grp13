@@ -32,10 +32,17 @@ class Scanner(Node):
 
     def listener_callback(self, msg):
         # create numpy array
+        # camera_range = msg.ranges
+        # range_dex = 0
+        # while range_dex < 360:
+        #     if range_dex > 25 or range_dex < 335:
+        #         camera_range[range_dex] = 999
+    
         laser_range = np.array(msg.ranges)
         # replace 0's with nan
         laser_range[laser_range==0] = np.nan
         # find index with minimum value
+       
         lr2i = np.nanargmin(laser_range)
 
         # log the info

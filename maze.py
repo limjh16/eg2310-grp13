@@ -76,6 +76,14 @@ def main(args=None):
     plt.show()
     mapcheck = mapCheck()
 
+    path_main = a_star_scan()
+
+    outwps = get_waypoints(path_main)
+    print("out waypoints: " + str(outwps))
+
+    while True:
+        time.sleep(5)
+
     for _ in range(3):
         path_main = a_star_scan()
 

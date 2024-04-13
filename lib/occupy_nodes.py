@@ -118,6 +118,7 @@ def check_neighbours(row, col, checknum):
                 return True
         return False
 
+
 class Occupy(Node):
     def __init__(self):
         super().__init__("occupy")
@@ -185,32 +186,69 @@ class Occupy(Node):
         curr_pos = reference_to_origin(curr_pos_odata)
         self.get_logger().info('Current' + str(curr_pos))
 
-        global goal_pos
        
-        goal = (0, 0)
-        # iterate through odata to find the goal (highest y coordinate)
-        maxnum = 0
-        for row in range(odata_y):
-            for col in range(odata_x): 
-                is_unoccupied = (odata[row][col] == 2)
-                is_next_to_unknown = (check_neighbours(row, col, 1))
-                # if odata[row][col] == 2 and row + col > maxnum:
-                if row + col > maxnum and is_unoccupied and is_next_to_unknown:
-                    maxnum = row + col
-                    goal = (col, row)
-        goal_pos = reference_to_origin(goal)
+        # goal = (0, 0)
+        # # iterate through odata to find the goal (highest y coordinate)
+        # maxnum = 0
+        # for row in range(odata_y):
+        #     for col in range(odata_x): 
+        #         is_unoccupied = (odata[row][col] == 2)
+        #         is_next_to_unknown = (check_neighbours(row, col, 1))
+        #         # if odata[row][col] == 2 and row + col > maxnum:
+        #         if row + col > maxnum and is_unoccupied and is_next_to_unknown:
+        #             maxnum = row + col
+        #             goal = (col, row)
+        # goal_pos = reference_to_origin(goal)
 
 
             
         # find goal_pos, the goal relative to the origin coordinates
        
-        self.get_logger().info('Goal' + str(goal_pos))
+        
         # raise SystemExit
 
         # EVERYTHING SHOULD NOW BE CONVERTED TO ODATA COORDINATES
         # exit this node once start and goal is found
         raise SystemExit
     
+def get_goal(col_start, row_start): 
+    # iterate through odata to find the goal (highest y coordinate)
+    # maxnum = 0
+    width = odata_x
+    height = odata_y
+    goal = 0
+    row = row_start
+    while goal == 0 and row >= 0:
+        # print("Scanning row " + str(row))
+        
+        # start iterating from the last found goal
+        if row == row_start:
+            while goal == 0 and col_start >= 0:
+                # print("scanning col " + str(col))
+                is_unoccupied = (odata[row][col_start] == 2)
+                # print("is unoccupied? " + str(is_unoccupied))
+                is_next_to_unknown = (check_neighbours(row, col_start, 1))
+                # print("is next to unknown? " + str(is_next_to_unknown))
+                if is_unoccupied and is_next_to_unknown:
+                    # print(str(col), str(row))
+                    goal = (col_start, row)
+                col_start -= 1
+        # once row containing last found goal has been fully searched, search the rest of the rows
+        else: 
+            col = width - 1
+            while goal == 0 and col >= 0:
+                # print("scanning col " + str(col))
+                is_unoccupied = (odata[row][col] == 2)
+                # print("is unoccupied? " + str(is_unoccupied))
+                is_next_to_unknown = (check_neighbours(row, col, 1))
+                # print("is next to unknown? " + str(is_next_to_unknown))
+                if is_unoccupied and is_next_to_unknown:
+                    # print(str(col), str(row))
+                    goal = (col, row)
+                col -= 1
+        row -= 1
+
+    return reference_to_origin(goal)
 
 
 def get_path(start, goal):
@@ -219,7 +257,7 @@ def get_path(start, goal):
 
     # mark the curr_pos and goal on the 2D array (need to print absolute coordinates, not with reference to defined origin)
     odata[int(curr_pos[1] + odata_origin[1]), int(curr_pos[0] + odata_origin[0])] = 4 # curr_pos
-    odata[int(goal_pos[1] + odata_origin[1]), int(goal_pos[0] + odata_origin[0])] = 4
+    odata[int(goal[1] + odata_origin[1]), int(goal[0] + odata_origin[0])] = 4
 
     print("finding path...")
 
@@ -231,6 +269,9 @@ def get_path(start, goal):
     # pause to make sure the plot gets created
     plt.pause(1.00000000001)
     came_from, cost_so_far, final_pos = a_star_search(odata, start, goal)
+    if final_pos == 0:
+        print("No path found")
+        return 0
 
 
     '''
@@ -340,15 +381,6 @@ class FirstOccupy(Node):
         self.tf_static_broadcaster.sendTransform(t)
 
 
-# this takes in a matrix and finds the coordinates of the point with the highest y coordinate
-def find_greatest_y(m):
-    for row in range(m, -1, -1):
-        for col in range(m[row]): 
-            if m[row][col] == 2:
-                return (col, row)
-    return (0, 0)    
-        
-
 # calculates euclidean distance from current position to the goal
 def cost_to_goal(pos, goal_pos):
     dist_x = abs(goal_pos[0] - pos[0])
@@ -412,6 +444,7 @@ def a_star_search(graph, start, goal):
     came_from = {start: None}
     cost_so_far = {start: 0}
     turning_cost = 20
+    final_pos = 0; # initialise final_pos variable, if 0 is returned then a clear path is not found
 
     while not frontier.empty():
         (_,current) = frontier.get()
@@ -453,8 +486,13 @@ def a_star_search(graph, start, goal):
                 frontier.put((priority,next))
                 came_from[next] = current
     # print(cost_so_far)
+   
     return came_from, cost_so_far, final_pos
     # return path
+
+
+
+
 
 def first_scan(): 
     firstoccupy = FirstOccupy()
@@ -472,9 +510,15 @@ def a_star_scan():
     except SystemExit:                 # <--- process the exception 
         rclpy.logging.get_logger("Quitting").info('Done')
         
-    
     occupy.destroy_node()
-    path_main = get_path(curr_pos, goal_pos)
+
+    goal_pos = get_goal(odata_x - 1, odata_y - 1)
+    print("Goal: " + str(goal_pos))
+
+    path_main = 0
+    while path_main == 0:
+        path_main = get_path(curr_pos, goal_pos)
+        goal_pos = get_goal(goal_pos[0], goal_pos[1]) # start finding new goal from the next row onwards, iterate from goal_pos[1] and below
 
     return path_main
 
