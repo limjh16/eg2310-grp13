@@ -246,6 +246,14 @@ class BucketScanner(Node):
 
 
 def move_to_bucket(threshold=0.04, dist=0.28, iter=5, bucket_radius=0.135):
+    """Move to bucket based on LiDAR
+
+    Args:
+        threshold (float (meters), optional): Threshold for bucket detection. Defaults to 0.04.
+        dist (float (meters), optional): Distance before bucket to stop (measured to center of bucket). Defaults to 0.28.
+        iter (int, optional): Number of times to collect and average bucket location. Defaults to 5.
+        bucket_radius (float (meters), optional): Radius of bucket. Defaults to 0.135.
+    """
     bucket_scanner = BucketScanner(threshold=threshold, bucket_radius=bucket_radius)
     # print(bucket_scanner.run_check())  # On actual robot, angle_increment always changes
     if bucket_scanner.pub_bucket(iter=iter) is not None:
