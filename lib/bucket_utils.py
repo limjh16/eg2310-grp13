@@ -231,7 +231,7 @@ class BucketScanner(Node):
         self.tf_static_broadcaster.sendTransform(t)
         return 1
 
-    def move_to_bucket(self, dist=0.28):
+    def move_to_bucket(self, dist=0.33):
         print(dist)
         move_turn(self.bucket_pos, end_yaw_range=0.03)
         move_straight(self.bucket_pos, end_distance_range=dist)
@@ -249,12 +249,12 @@ class BucketScanner(Node):
         return self.angle
 
 
-def move_to_bucket(threshold=0.04, dist=0.28, iter=5, bucket_radius=0.135):
+def move_to_bucket(threshold=0.04, dist=0.33, iter=5, bucket_radius=0.135):
     """Move to bucket based on LiDAR
 
     Args:
         threshold (float (meters), optional): Threshold for bucket detection. Defaults to 0.04.
-        dist (float (meters), optional): Distance before bucket to stop (measured to center of bucket). Defaults to 0.28.
+        dist (float (meters), optional): Distance before bucket to stop (measured to center of bucket). Defaults to 0.33.
         iter (int, optional): Number of times to collect and average bucket location. Defaults to 5.
         bucket_radius (float (meters), optional): Radius of bucket. Defaults to 0.135.
     """
