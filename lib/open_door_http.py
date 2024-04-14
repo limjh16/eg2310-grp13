@@ -11,6 +11,7 @@ def open_door(ESP_IP:str):
     door = response.json()["data"]["message"]
     # print(door)
     return 1 if door == "door1" else (2 if door == "door2" else 0) # print 0 means unexpected response
+    # TODO: catch timeout / problem, then manual input
 
 def main(args=None):
     print(open_door("192.168.67.199"))
