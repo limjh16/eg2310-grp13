@@ -24,37 +24,33 @@ class ServoService(Node):
     def throw_routine(self):
         self.pi = pigpio.pi()
 
-        self.pi.set_PWM_frequency(12, 50) # set frequency to 50Hz for servo
-        self.pi.set_PWM_frequency(13, 50) # set frequency to 50Hz for servo
-        self.pi.set_PWM_dutycycle(12, 8) # 2.5% duty cycle, 2.5/100*255~7, 0 degrees
-        self.pi.set_PWM_dutycycle(13, 33) # starting position
+        try:
+            self.pi.set_PWM_frequency(12, 50) # set frequency to 50Hz for servo
+            self.pi.set_PWM_frequency(13, 50) # set frequency to 50Hz for servo
+            self.pi.set_PWM_dutycycle(12, 8) # 2.5% duty cycle, 2.5/100*255~7, 0 degrees
+            self.pi.set_PWM_dutycycle(13, 33) # starting position
 
-        sleep(0.1)
+            sleep(1)
 
-        self.pi.set_PWM_dutycycle(12, 22) # halfway mark
-        self.pi.set_PWM_dutycycle(13, 19)
+            # go more than halfway
+            self.pi.set_PWM_dutycycle(12, 28)
+            self.pi.set_PWM_dutycycle(13, 13)
 
-        sleep(0.5)
+            sleep(1)
 
-        self.pi.set_PWM_dutycycle(12, 27) # 3/4 mark
-        self.pi.set_PWM_dutycycle(13, 14)
+            # go all the way
+            self.pi.set_PWM_dutycycle(12, 33)
+            self.pi.set_PWM_dutycycle(13, 8)
 
-        sleep(3)
+            sleep(2)
 
-        self.pi.set_PWM_dutycycle(12, 33)
-        self.pi.set_PWM_dutycycle(13, 8)
+            for i in range(1, 33-8+1):
+                self.pi.set_PWM_dutycycle(12, 33-i)
+                self.pi.set_PWM_dutycycle(13, 8+i)
+                sleep(0.1)
 
-        sleep(1)
-
-        self.pi.set_PWM_dutycycle(12, 24)
-        self.pi.set_PWM_dutycycle(13, 17)
-
-        sleep(1)
-
-        self.pi.set_PWM_dutycycle(12, 8)
-        self.pi.set_PWM_dutycycle(13, 33)
-
-        sleep(0.1)
+        except KeyboardInterrupt:
+            pass
 
         self.pi.set_mode(12, pigpio.INPUT)
         self.pi.set_mode(13, pigpio.INPUT)
