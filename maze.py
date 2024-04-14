@@ -81,7 +81,7 @@ def main(args=None):
     plt.ion()
     plt.show()
     mapcheck = mapCheck()
-    exitbreak = 1
+    exitbreak = 1 # check if maze exit has been seen
 
 
     for _ in range(15):
@@ -126,12 +126,32 @@ def main(args=None):
         rclpy.spin_once(mapcheck)
     
 
-    plt.close()
-
     # door = open_door("192.168.67.")
     # TODO move to either room 1 or 2
     # move_to_bucket()
     # launch_servo()
+
+    # Go back to explore the maze
+    for _ in range(15):
+        path_main = a_star_scan()
+
+        outwps = get_waypoints(path_main)
+        print("out waypoints: " + str(outwps))
+        time_start = time.time()
+        for x in outwps:
+            print(x)
+            # time.sleep(2)
+            # will reset once every 20 seconds unless exit is seen: if exit seen, will move directly to exit and skip the resets.
+            # once exit is seen, don't reset anymore (exitbreak will never equal 1) until quit is called
+            move_turn(x, end_yaw_range=0.13, PID_angular=(2,0,4))
+            # time.sleep(1)
+            move_straight(x)
+            # time.sleep(1)
+
+            rclpy.spin_once(mapcheck)
+    
+    plt.close()
+
 
     # Destroy the node explicitly
     # (optional - otherwise it will be done automatically

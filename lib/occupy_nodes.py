@@ -522,7 +522,7 @@ def a_star_scan():
 
     return path_main
 
-def go_to_doors(goal=(1.7, 2.9)):
+def go_to_doors(goal=(1.8, 2.8)):
     print("Going to doors!!!")
     occupy = Occupy()
     # costmapsub = CostmapSub()
