@@ -21,7 +21,7 @@ from tf2_ros import LookupException, ConnectivityException, ExtrapolationExcepti
 import scipy.stats
 from .lib.maze_manipulation import get_waypoints, dilate123
 from .lib.pid_tf2 import move_straight, move_turn, return_cur_pos
-from .lib.occupy_nodes import first_scan, a_star_scan, return_odata_origin, a_star_search, go_to_doors
+from .lib.occupy_nodes import delta_to_origin, first_scan, a_star_scan, return_odata_origin, a_star_search, go_to_doors, convert_to_odata, return_odata_origin_delta
 from .lib.open_door_http import open_door
 from .lib.bucket_utils import move_to_bucket
 from .lib.servo_client import launch_servo
@@ -36,6 +36,8 @@ path_main = []
 dilate_size = 2
 global quit
 quit = 0
+ipaddr = "192.168.bla.bla"
+lobby_coord = (1.8,2.8)
 
 class mapCheck(Node):
     def __init__(self):
@@ -57,9 +59,11 @@ class mapCheck(Node):
         cdata[cdata >= 0] = 1
         cdata[cdata == -1] = 0
         no_wall_indexes = np.nonzero(cdata)
-        y_dist = np.max(no_wall_indexes[0]) - return_odata_origin()[1]
-        print("distance_to_furthest:  "+str(y_dist))
-        if (y_dist > (2.85 / msg.info.resolution)):
+        odata_lobby_coord = delta_to_origin(convert_to_odata(lobby_coord, msg.info.origin.position.x, msg.info.origin.position.y))
+        # y_dist = np.max(no_wall_indexes[0]) - return_odata_origin()[1]
+        # print("distance_to_furthest:  "+str(y_dist))
+        # if (y_dist > (3 / msg.info.resolution)):
+        if (odata_lobby_coord[0] in no_wall_indexes[1] and odata_lobby_coord[1] in no_wall_indexes[0]):
             global quit
             quit = 1
             print("!!!!!!!!!!!!!!!!!!!!!!!!quit!!!!!!!!!!!!!!!!!!")
@@ -67,7 +71,7 @@ class mapCheck(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-
+    
     first_scan()
 
     # create matplotlib figure
@@ -91,34 +95,72 @@ def main(args=None):
                 break
             # will reset once every 20 seconds unless exit is seen: if exit seen, will move directly to exit and skip the resets.
             # once exit is seen, don't reset anymore (exitbreak will never equal 1) until quit is called
-            move_turn(x, end_yaw_range=0.13, PID_angular=(2,0,4))
+            move_turn(x)
             # time.sleep(1)
             move_straight(x)
             # time.sleep(1)
 
             rclpy.spin_once(mapcheck)
         if quit:
-            print("quit, at maze exit")
+            print("quit, can see elevator")
             break
 
-    path_main = go_to_doors()
+    print("---------------going to lobby!---------------")
+    path_main = go_to_doors(goal=lobby_coord, range_dist=4)
     outwps = get_waypoints(path_main)
     print("out waypoints: " + str(outwps))
     for x in outwps:
         print(x)
         # time.sleep(2)
-        move_turn(x, end_yaw_range=0.13, PID_angular=(2,0,4))
+        move_turn(x)
         # time.sleep(1)
         move_straight(x)
         # time.sleep(1)
 
-        rclpy.spin_once(mapcheck)
+    # print("---------------http call!---------------")
+    # door = 0
+    # while door == 0:
+    #     door = open_door(ipaddr)
+    door = 1
+
+    print("!!!!!!!!!!!!!!!---------------waiting 10s, pls open door!---------------!!!!!!!!!!!!!!!!!!!")
+    time.sleep(10)
     
 
-    # door = open_door("192.168.67.")
-    # TODO move to either room 1 or 2
-    # move_to_bucket()
-    # launch_servo()
+    print("---------------going to door "+str(door)+"!---------------")
+
+    door_coord = lobby_coord
+    if door == 1:
+        door_coord = (1.40, door_coord[1])
+    elif door == 2:
+        door_coord = (2.17, door_coord[1])
+    path_main = go_to_doors(goal=door_coord, range_dist=4)
+    outwps = get_waypoints(path_main)
+    print("out waypoints: " + str(outwps))
+    for x in outwps:
+        print(x)
+        # time.sleep(2)
+        move_turn(x)
+        # time.sleep(1)
+        move_straight(x)
+        # time.sleep(1)
+    '''
+    odata_delta = return_odata_origin_delta()
+    door_coord = (
+        door_coord[0] - odata_delta[0] * 0.02,
+        door_coord[1] - odata_delta[1] * 0.02
+    )
+    move_turn(door_coord)
+    move_straight(door_coord)
+    '''
+
+    print("---------------going to bucket!---------------")
+    if(move_to_bucket() is not None):
+        print("---------------launching servo!---------------")
+        launch_servo()
+    else:
+        print("---------------no bucket found :(---------------")
+        # TODO continue finding the damn bucket
 
     # Go back to explore the maze
     for _ in range(15):
