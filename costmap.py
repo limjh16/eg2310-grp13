@@ -26,7 +26,7 @@ class Costmap(Node):
             dilate=int((0.243 / 2) // msg.info.resolution + 1),
             inflation_radius=3,
             inflation_step=20,
-            threshold=60,
+            threshold=52,
             erode=6,
         )
         omap = OccupancyGrid()
