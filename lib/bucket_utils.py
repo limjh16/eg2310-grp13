@@ -262,6 +262,9 @@ def move_to_bucket(threshold=0.04, dist=0.33, iter=5, bucket_radius=0.135):
     # print(bucket_scanner.run_check())  # On actual robot, angle_increment always changes
     if bucket_scanner.pub_bucket(iter=iter) is not None:
         bucket_scanner.move_to_bucket(dist=dist)
+        return 0
+    else:
+        return None
     bucket_scanner.destroy_node()
 
 
