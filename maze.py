@@ -36,8 +36,6 @@ path_main = []
 dilate_size = 2
 global quit
 quit = 0
-global exit
-exit = 0
 
 class mapCheck(Node):
     def __init__(self):
@@ -61,12 +59,7 @@ class mapCheck(Node):
         no_wall_indexes = np.nonzero(cdata)
         y_dist = np.max(no_wall_indexes[0]) - return_odata_origin()[1]
         print("distance_to_furthest:  "+str(y_dist))
-        if (y_dist > (2.15 / msg.info.resolution)):
-            print ("!!!!!!!!!!!!!!!!!!!!!!!exit found")
-            global exit
-            exit = 1
-        print( round(float(return_cur_pos().y - msg.info.origin.position.y) / msg.info.resolution)  - return_odata_origin()[1])
-        if (round(float(return_cur_pos().y - msg.info.origin.position.y) / msg.info.resolution)  - return_odata_origin()[1]) > (2.15 / msg.info.resolution):
+        if (y_dist > (2.85 / msg.info.resolution)):
             global quit
             quit = 1
             print("!!!!!!!!!!!!!!!!!!!!!!!!quit!!!!!!!!!!!!!!!!!!")
@@ -81,7 +74,6 @@ def main(args=None):
     plt.ion()
     plt.show()
     mapcheck = mapCheck()
-    exitbreak = 1 # check if maze exit has been seen
 
 
     for _ in range(15):
@@ -95,10 +87,7 @@ def main(args=None):
             # time.sleep(2)
             if quit:
                 break
-            if exit == 1 and exitbreak == 1:
-                exitbreak = 0
-                break
-            if exitbreak == 1 and time.time()-time_start > 20:
+            if time.time()-time_start > 20:
                 break
             # will reset once every 20 seconds unless exit is seen: if exit seen, will move directly to exit and skip the resets.
             # once exit is seen, don't reset anymore (exitbreak will never equal 1) until quit is called
