@@ -45,7 +45,7 @@ class WPMover(Node):
             PID_linear[1],
             PID_linear[2],
             setpoint=0,
-            output_limits=(-linear_speed_limit, 0),
+            output_limits=(-linear_speed_limit, -0.01),
         )
         self.cmdvelpub = self.create_publisher(Twist, "cmd_vel", 10)
 
