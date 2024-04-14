@@ -41,6 +41,7 @@ def reference_to_origin(raw_odata_coord):
     Returns: 
         tuple: (x, y) value in odata eith reference to the origin
     """
+    odata_origin = return_odata_origin()
     return (
         raw_odata_coord[0] - odata_origin[0],
         raw_odata_coord[1] - odata_origin[1]
@@ -52,9 +53,16 @@ def dereference_to_origin(ref_odata_coord):
         ref_odata_coord (tuple): the (x, y) value in odata with respect to the origin
     Returns: 
         tuple: (x, y) raw value in odata"""
+    odata_origin = return_odata_origin()
     return (
         ref_odata_coord[0] + odata_origin[0],
         ref_odata_coord[1] + odata_origin[1]
+    )
+
+def delta_to_origin(ref_odata_coord):
+    return (
+        ref_odata_coord[0] + odata_origin_delta[0],
+        ref_odata_coord[1] + odata_origin_delta[1]
     )
 
 class CostmapSub(Node):
@@ -84,7 +92,7 @@ def convert_to_rviz(odata_coord):
     )
     return rviz
 # use this function to convert from odata coordinates to rviz coordinates
-def convert_to_odata(rviz):
+def convert_to_odata(rviz, origin_x, origin_y):
     """ Scaling of rviz (x, y) coordinates in meters to odata (x, y) coordinates
     Args: 
         rviz (tuple): (x, y) coordinates in rviz
@@ -92,8 +100,8 @@ def convert_to_odata(rviz):
         tuple: (x, y) coordinates in odata"""
     odata_coord = (
 
-        round(float(rviz[0] - origin_pos_x) / map_resolution), 
-        round(float(rviz[1] - origin_pos_y) / map_resolution) 
+        round(float(rviz[0] - origin_x) / map_resolution), 
+        round(float(rviz[1] - origin_y) / map_resolution) 
     )
     return odata_coord
 
@@ -172,13 +180,10 @@ class Occupy(Node):
         cur_pos = trans.transform.translation 
         self.get_logger().info('Trans: %f, %f' % (cur_pos.x, cur_pos.y))
 
-        # confirm our defined origin coordinates in odata, obtained from FirstOccupancy()
-        self.get_logger().info('odata_origin: ' + str(odata_origin))
-
         # rviz coordinates of turtlebot's current position
         temp_cur_pos = (cur_pos.x, cur_pos.y) 
         # convert turtlebot's rviz coordinates to odata coordintates to be reflected in the occupancy grid
-        curr_pos_odata = convert_to_odata(temp_cur_pos) 
+        curr_pos_odata = convert_to_odata(temp_cur_pos, origin_pos_x, origin_pos_y) 
         self.get_logger().info('curr_pos_odata: ' + str(curr_pos_odata))
 
         # current position of turtlebot in odata, with reference to origin 
@@ -251,10 +256,10 @@ def get_goal(col_start, row_start):
     return reference_to_origin(goal)
 
 
-def get_path(start, goal):
+def get_path(start, goal, range_dist = dilate_size):
     # start_pos = curr_pos
     
-
+    odata_origin = return_odata_origin()
     # mark the curr_pos and goal on the 2D array (need to print absolute coordinates, not with reference to defined origin)
     odata[int(curr_pos[1] + odata_origin[1]), int(curr_pos[0] + odata_origin[0])] = 4 # curr_pos
     odata[int(goal[1]) + odata_origin[1], int(goal[0] + odata_origin[0])] = 4
@@ -268,7 +273,7 @@ def get_path(start, goal):
     # plt.draw_all()
     # pause to make sure the plot gets created
     plt.pause(1.00000000001)
-    came_from, cost_so_far, final_pos = a_star_search(odata, start, goal)
+    came_from, cost_so_far, final_pos = a_star_search(odata, start, goal, range_dist=range_dist)
     if final_pos == 0:
         print("No path found")
         return 0
@@ -351,8 +356,11 @@ class FirstOccupy(Node):
                     minnum = i + j
                     current_min = (i, j)
 
-        global odata_origin
-        odata_origin = current_min
+        global odata_origin_delta
+        odata_origin_delta = (
+            current_min[0] + int(msg.info.origin.position.x / msg.info.resolution),
+            current_min[1] + int(msg.info.origin.position.y / msg.info.resolution)
+        )
         
         current_min = (
             current_min[0] * msg.info.resolution + msg.info.origin.position.x,
@@ -427,7 +435,7 @@ def heuristic(a, b):
     return 1.4 if abs(x1 - x2) and abs(y1 - y2) else 1 # sqrt2
 
 # I got this one from online somewhere
-def a_star_search(graph, start, goal):
+def a_star_search(graph, start, goal, range_dist = dilate_size):
     """ This function searches for the shortest path via the a star search algo
     Args: 
         graph (2D Array): A matrix representation of the map
@@ -452,7 +460,7 @@ def a_star_search(graph, start, goal):
         # path.append(current)
 
         # bool variables to check if the current position is within range of goal
-        range_dist = dilate_size # if we dilate by 2, this needs to be 2
+        # range_dist = dilate_size # if we dilate by 2, this needs to be 2
         is_within_goal_y = (current[1] < goal[1] + range_dist and current[1] > goal[1] - range_dist)
         is_within_goal_x = (current[0] < goal[0] + range_dist and current[0] > goal[0] - range_dist)
 
@@ -471,7 +479,7 @@ def a_star_search(graph, start, goal):
             if next not in cost_so_far or new_cost < cost_so_far[next]:
                 cost_so_far[next] = new_cost
                 priority = new_cost + heuristic(goal, next)
-                priority += costmap[current[1]][current[0]]
+                priority += costmap[next[1]][next[0]]
                 prev = came_from[current]
                 if prev != None:
                     # next_direction = (int(next[0] - current[0]), int(next[1] - current[1]))
@@ -522,7 +530,7 @@ def a_star_scan():
 
     return path_main
 
-def go_to_doors(goal=(1.8, 2.8)):
+def go_to_doors(goal=(1.8, 2.8), range_dist=dilate_size):
     print("Going to doors!!!")
     occupy = Occupy()
     # costmapsub = CostmapSub()
@@ -537,13 +545,24 @@ def go_to_doors(goal=(1.8, 2.8)):
      # x = 1.7, y = 2.9
     goal_rviz = goal
     print("goal_rviz: " + str(goal_rviz))
-    goal_odata = reference_to_origin(reference_to_origin(convert_to_odata(goal_rviz)))
+    goal_odata = delta_to_origin(convert_to_odata(goal_rviz, origin_pos_x, origin_pos_y))
+    odata_origin = return_odata_origin()
+    goal_odata = (
+        goal_odata[0] - odata_origin[0],
+        goal_odata[1] - odata_origin[1]
+    )
     print("goal_odata" + str(goal_odata))
     #     print("going between doors")
     #     goal_pos =
-    path_main = get_path(curr_pos, goal_odata)
+    path_main = get_path(curr_pos, goal_odata, range_dist=range_dist)
     print(str(path_main))
     return path_main
 
 def return_odata_origin():
-    return odata_origin    
+    delta_map = convert_to_odata((-origin_pos_x, -origin_pos_y), origin_pos_x, origin_pos_y)
+    odata_origin = (delta_map[0] + odata_origin_delta[0],
+                    delta_map[1] + odata_origin_delta[1])
+    return odata_origin
+
+def return_odata_origin_delta():
+    return odata_origin_delta 
