@@ -70,7 +70,9 @@ def check_bucket_lidar(
     if abs(lidar_ranges.size * angle_increment - 6.28) > 0.1:
         warnings.warn("lidar_ranges.size does not match angle_increment!!")
     for i in np.argsort(lidar_ranges):  # start checking from shortest
-        if (math.pi/4)/angle_increment > i or i > (7*math.pi/4)/angle_increment:
+        if (math.pi / 4) / angle_increment > i or i > (
+            7 * math.pi / 4
+        ) / angle_increment:
             # print("out of range, selected point is behind robot")
             continue
         distance = lidar_ranges[i]
@@ -145,10 +147,18 @@ class BucketScanner(Node):
             self.angle_increment = msg.angle_increment
 
     def pub_bucket(self, iter=5):
+        def reject_outliers(angle, dist, m=2.0)->np.ndarray:  # https://stackoverflow.com/a/45399188
+            data = np.array(angle)
+            dist_np = np.array(dist)
+            d = np.abs(data - np.median(data))
+            mdev = np.median(d)
+            s = d / (mdev if mdev else 1.0)
+            return data[s < m], dist_np[s < m]
+
         cnt = 0
         fail_cnt = 0
-        avg_angle = 0
-        avg_dist = 0
+        avg_angle = []
+        avg_dist = []
         while cnt < iter:
             if self.run_check() is None:
                 fail_cnt += 1
@@ -157,21 +167,26 @@ class BucketScanner(Node):
                     return None
             else:
                 cnt += 1
-                avg_angle += self.angle
-                avg_dist += self.lidar_ranges[int(self.angle / self.angle_increment)]
+                avg_angle.append(self.angle)
+                avg_dist.append(
+                    self.lidar_ranges[int(self.angle / self.angle_increment)]
+                )
                 print(
                     "Angle: "
                     + str(self.angle)
                     + " | Dist: "
                     + str(self.lidar_ranges[int(self.angle / self.angle_increment)])
                 )
-        avg_angle /= iter
-        avg_dist /= iter
-        avg_angle = np.arctan2(
-            np.sin(-avg_angle), np.cos(-avg_angle)
+        avg_angle, avg_dist = reject_outliers(avg_angle, avg_dist)
+        print("Filtered Angles: " + str(avg_angle) + " | Filtered Dists: " + str(avg_dist))
+        filtered_angle = avg_angle.mean()
+        filtered_dist = avg_dist.mean()
+        print("Avg Angle: " + str(filtered_angle) + " | Avg Dist: " + str(filtered_dist))
+        filtered_angle = np.arctan2(
+            np.sin(-filtered_angle), np.cos(-filtered_angle)
         )  # https://stackoverflow.com/a/2321125
-        avg_dist += self.bucket_radius
-        print("Avg Angle: " + str(avg_angle) + " | Avg Dist: " + str(avg_dist))
+        filtered_dist += self.bucket_radius
+        print("Processed Angle: " + str(filtered_angle) + " | Processed Dist: " + str(filtered_dist))
 
         self.tfBuffer = tf2_ros.Buffer()
         self.tfListener = tf2_ros.TransformListener(self.tfBuffer, self)
@@ -184,7 +199,7 @@ class BucketScanner(Node):
                     "map",
                     "base_scan",
                     rclpy.time.Time(),
-                    timeout=rclpy.duration.Duration(seconds=0.2),
+                    # timeout=rclpy.duration.Duration(seconds=0.2),
                 )
                 break
             except (
@@ -198,12 +213,12 @@ class BucketScanner(Node):
         # _, _, scan_yaw = euler_from_quaternion(
         #     cur_rot.x, cur_rot.y, cur_rot.z, cur_rot.w
         # )
-        q_r = quaternion_from_euler(0, 0, avg_angle)
+        q_r = quaternion_from_euler(0, 0, filtered_angle)
         q_2 = quaternion_multiply(q_r, (cur_rot.x, cur_rot.y, cur_rot.z, cur_rot.w))
-        # bucket_yaw_from_scan = scan_yaw - avg_angle
+        # bucket_yaw_from_scan = scan_yaw - filtered_angle
         _, _, bucket_yaw_from_scan = euler_from_quaternion(*q_2)
-        dx = avg_dist * np.cos(bucket_yaw_from_scan)
-        dy = avg_dist * np.sin(bucket_yaw_from_scan)
+        dx = filtered_dist * np.cos(bucket_yaw_from_scan)
+        dy = filtered_dist * np.sin(bucket_yaw_from_scan)
         self.bucket_pos = (cur_pos.x + dx, cur_pos.y + dy)
         # print(
         #     "dxdy: "
@@ -233,7 +248,7 @@ class BucketScanner(Node):
 
     def move_to_bucket(self, dist=0.33):
         print(dist)
-        move_turn(self.bucket_pos, end_yaw_range=0.03)
+        move_turn(self.bucket_pos, end_yaw_range=0.02)
         move_straight(self.bucket_pos, end_distance_range=dist)
 
     def run_check(self):
