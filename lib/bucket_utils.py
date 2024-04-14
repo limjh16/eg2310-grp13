@@ -142,9 +142,6 @@ class BucketScanner(Node):
             self.angle_increment = msg.angle_increment
 
     def pub_bucket(self, iter=5):
-        self.tfBuffer = tf2_ros.Buffer()
-        self.tfListener = tf2_ros.TransformListener(self.tfBuffer, self)
-        self.tf_static_broadcaster = tf2_ros.StaticTransformBroadcaster(self)
         cnt = 0
         fail_cnt = 0
         avg_angle = 0
@@ -172,6 +169,10 @@ class BucketScanner(Node):
         )  # https://stackoverflow.com/a/2321125
         avg_dist += self.bucket_radius
         print("Avg Angle: " + str(avg_angle) + " | Avg Dist: " + str(avg_dist))
+
+        self.tfBuffer = tf2_ros.Buffer()
+        self.tfListener = tf2_ros.TransformListener(self.tfBuffer, self)
+        self.tf_static_broadcaster = tf2_ros.StaticTransformBroadcaster(self)
 
         while True:
             try:
