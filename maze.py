@@ -21,7 +21,7 @@ from tf2_ros import LookupException, ConnectivityException, ExtrapolationExcepti
 import scipy.stats
 from .lib.maze_manipulation import get_waypoints, dilate123
 from .lib.pid_tf2 import move_straight, move_turn, return_cur_pos
-from .lib.occupy_nodes import delta_to_origin, first_scan, a_star_scan, return_odata_origin, a_star_search, go_to_doors, convert_to_odata, return_odata_origin_delta
+from .lib.occupy_nodes import delta_to_origin, first_scan, a_star_scan, return_odata_origin, a_star_search, go_to_doors, finish_maze, convert_to_odata, return_odata_origin_delta
 from .lib.open_door_http import open_door
 from .lib.bucket_utils import move_to_bucket
 from .lib.servo_client import launch_servo
@@ -112,16 +112,20 @@ def main(args=None):
             break
 
     print("---------------going to lobby!---------------")
-    path_main = go_to_doors(goal=lobby_coord)
-    outwps = get_waypoints(path_main)
-    print("out waypoints: " + str(outwps))
-    for x in outwps:
-        print(x)
-        # time.sleep(2)
-        move_turn(x)
-        # time.sleep(1)
-        move_straight(x)
-        # time.sleep(1)
+    
+    # can actually update path every 10 seconds (similar to above) by breaking the loop and calling go_to_doors() again
+
+    for _ in range(2): # run twice to confirm its at the lobby coordinates, as go_to_doors() allows for some margin of error
+        path_main = go_to_doors(goal=lobby_coord)
+        outwps = get_waypoints(path_main)
+        print("out waypoints: " + str(outwps))
+        for x in outwps:
+            print(x)
+            # time.sleep(2)
+            move_turn(x)
+            # time.sleep(1)
+            move_straight(x)
+            # time.sleep(1)
 
     # print("---------------http call!---------------")
     # door = 0
@@ -182,7 +186,7 @@ def main(args=None):
 
     # Go back to explore the maze
     for _ in range(15):
-        path_main = a_star_scan()
+        path_main = finish_maze()
 
         outwps = get_waypoints(path_main)
         print("out waypoints: " + str(outwps))
@@ -190,6 +194,8 @@ def main(args=None):
         for x in outwps:
             print(x)
             # time.sleep(2)
+            if time.time()-time_start > 20:
+                break
             # will reset once every 20 seconds unless exit is seen: if exit seen, will move directly to exit and skip the resets.
             # once exit is seen, don't reset anymore (exitbreak will never equal 1) until quit is called
             move_turn(x, end_yaw_range=0.13, PID_angular=(2,0,4))
@@ -198,7 +204,7 @@ def main(args=None):
             # time.sleep(1)
 
             rclpy.spin_once(mapcheck)
-    
+
     plt.close()
 
 

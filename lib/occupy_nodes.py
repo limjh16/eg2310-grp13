@@ -580,6 +580,29 @@ def go_to_doors(goal=(1.8, 2.8), range_dist=dilate_size):
     goal_rviz = goal
     print("goal_rviz: " + str(goal_rviz))
     goal_odata = delta_to_origin(convert_to_odata(goal_rviz, origin_pos_x, origin_pos_y))
+
+    if goal_odata == curr_pos:
+        return goal_odata
+
+    is_in_unoccupied = (odata[goal_odata[1]][goal_odata[0]] == 2)
+
+    odata[int(goal_odata[1]), int(goal_odata[0])] = 4 # curr_pos
+
+    if not is_in_unoccupied: 
+        unoccupied_pts = np.transpose(np.nonzero(odata == 2))
+        closest_dist = 999999
+        closest_pt = return_odata_origin()
+        for pts in unoccupied_pts: 
+            pts = (pts[1], pts[0])
+            calc_dist = cost_to_goal(goal_odata, pts)
+            if calc_dist < closest_dist:
+                closest_dist = calc_dist
+                closest_pt = pts
+
+        goal_odata = closest_pt
+        print('new goal_odata: ' + str(goal_odata))
+
+
     odata_origin = return_odata_origin()
     goal_odata = (
         goal_odata[0] - odata_origin[0],
@@ -591,6 +614,39 @@ def go_to_doors(goal=(1.8, 2.8), range_dist=dilate_size):
     path_main = get_path(curr_pos, goal_odata, range_dist=range_dist)
     print(str(path_main))
     return path_main
+
+
+def finish_maze(upper_bound=(1.8, 2.8)):
+    print("Finishing maze!!!")
+    occupy = Occupy()
+    # costmapsub = CostmapSub()
+    # rclpy.spin_once(costmapsub)
+    try:
+        rclpy.spin(occupy)
+    except SystemExit:                 # <--- process the exception 
+        rclpy.logging.get_logger("Quitting").info('Done')
+    
+    occupy.destroy_node()
+    # path_main = get_path(curr_pos, goal_pos)
+    upper_bound_rviz = upper_bound
+    print("upper_bound_rviz: " + str(upper_bound_rviz))
+    upper_bound_odata = delta_to_origin(convert_to_odata(upper_bound_rviz, origin_pos_x, origin_pos_y))
+    odata_origin = return_odata_origin()
+    upper_bound_odata = (
+        upper_bound_odata[0] - odata_origin[0],
+        upper_bound_odata[1] - odata_origin[1]
+    )
+    goal_pos = get_goal(upper_bound_odata[0] - 1, upper_bound_odata[1] - 1)
+    print("Goal: " + str(goal_pos))
+    path_main = 0
+    while path_main == 0:
+        path_main = get_path(curr_pos, goal_pos)
+
+        # search for goal_pos is continually referenced to origin during each iteration
+        goal_pos = get_goal(goal_pos[0], goal_pos[1]) # start finding new goal from the next row onwards, iterate from goal_pos[1] and below
+
+    return path_main
+
 
 def return_odata_origin():
     delta_map = convert_to_odata((-origin_pos_x, -origin_pos_y), origin_pos_x, origin_pos_y)
