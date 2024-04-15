@@ -186,6 +186,27 @@ class Occupy(Node):
         curr_pos_odata = convert_to_odata(temp_cur_pos, origin_pos_x, origin_pos_y) 
         self.get_logger().info('curr_pos_odata: ' + str(curr_pos_odata))
 
+        # curr_pos_odata is not yet referenced to our defined origin from FirstOccupy()
+
+        # do this to find the next closest point in odata that is unoccupied
+        is_in_wall = (odata[curr_pos_odata[1]][curr_pos_odata[0]] == 3)
+
+        if is_in_wall: 
+            unoccupied_pts = np.transpose(np.nonzero(odata == 2))
+            closest_dist = 999999
+            closest_pt = (0, 0)
+            for pts in unoccupied_pts: 
+                calc_dist = cost_to_goal(curr_pos_odata, pts)
+                if calc_dist < closest_dist:
+                    closest_dist = calc_dist
+                    closest_pt = pts
+
+            curr_pos_odata = closest_pt
+            self.get_logger().info('new curr_pos_odata: ' + str(curr_pos_odata))
+
+
+
+
         # current position of turtlebot in odata, with reference to origin 
         global curr_pos
         curr_pos = reference_to_origin(curr_pos_odata)
