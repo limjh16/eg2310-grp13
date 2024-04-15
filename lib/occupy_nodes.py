@@ -342,29 +342,34 @@ class FirstOccupy(Node):
 
     def occ_callback(self, msg):
         occdata = np.array(msg.data)
+        self.info = msg.info
         _, _, binnum = scipy.stats.binned_statistic(
-            occdata, np.nan, statistic="count", bins=occ_bins
+            occdata, np.nan, statistic="count", bins=[-1, 0, 20, 100]
         )
-        odata = np.uint8(binnum.reshape(msg.info.height, msg.info.width))
-
-        (odata_y, odata_x) = odata.shape
+        self.odata = np.uint8(binnum.reshape(msg.info.height, msg.info.width))
+    
+    def find_origin(self):
+        rclpy.spin_once(self)
+        (odata_y, odata_x) = self.odata.shape
         minnum = 10000000
         current_min = (0, 0)
-        for j in range(odata_y):
-            for i in range(odata_x):
-                if odata[j][i] == 2 and i + j < minnum:
-                    minnum = i + j
-                    current_min = (i, j)
-
+        while current_min == (0,0):
+            rclpy.spin_once(self)
+            for j in range(odata_y):
+                for i in range(odata_x):
+                    if self.odata[j][i] == 2 and i + j < minnum:
+                        minnum = i + j
+                        current_min = (i, j)
+        print(self.odata[current_min[1]][current_min[0]])
         global odata_origin_delta
         odata_origin_delta = (
-            current_min[0] + int(msg.info.origin.position.x / msg.info.resolution),
-            current_min[1] + int(msg.info.origin.position.y / msg.info.resolution)
+            current_min[0] + int(self.info.origin.position.x / self.info.resolution),
+            current_min[1] + int(self.info.origin.position.y / self.info.resolution)
         )
         
         current_min = (
-            current_min[0] * msg.info.resolution + msg.info.origin.position.x,
-            current_min[1] * msg.info.resolution + msg.info.origin.position.y,
+            current_min[0] * self.info.resolution + self.info.origin.position.x,
+            current_min[1] * self.info.resolution + self.info.origin.position.y,
         )
 
 
@@ -451,7 +456,7 @@ def a_star_search(graph, start, goal, range_dist = dilate_size):
     frontier.put((0, start))
     came_from = {start: None}
     cost_so_far = {start: 0}
-    turning_cost = 5
+    turning_cost = 8
     final_pos = 0 # initialise final_pos variable, if 0 is returned then a clear path is not found
 
     while not frontier.empty():
@@ -505,7 +510,8 @@ def a_star_search(graph, start, goal, range_dist = dilate_size):
 def first_scan(): 
     firstoccupy = FirstOccupy()
 
-    rclpy.spin_once(firstoccupy)
+    # rclpy.spin_once(firstoccupy)
+    firstoccupy.find_origin()
     firstoccupy.destroy_node()
 
 def a_star_scan(): 
