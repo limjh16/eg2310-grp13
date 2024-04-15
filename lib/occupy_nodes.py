@@ -191,11 +191,14 @@ class Occupy(Node):
         # do this to find the next closest point in odata that is unoccupied
         is_in_wall = (odata[curr_pos_odata[1]][curr_pos_odata[0]] == 3)
 
+        odata[int(curr_pos_odata[1]), int(curr_pos_odata[0])] = 4 # curr_pos
+
         if is_in_wall: 
             unoccupied_pts = np.transpose(np.nonzero(odata == 2))
             closest_dist = 999999
-            closest_pt = (0, 0)
+            closest_pt = return_odata_origin()
             for pts in unoccupied_pts: 
+                pts = (pts[1], pts[0])
                 calc_dist = cost_to_goal(curr_pos_odata, pts)
                 if calc_dist < closest_dist:
                     closest_dist = calc_dist
@@ -210,6 +213,7 @@ class Occupy(Node):
         # current position of turtlebot in odata, with reference to origin 
         global curr_pos
         curr_pos = reference_to_origin(curr_pos_odata)
+        # curr_pos = curr_pos_odata
         self.get_logger().info('Current' + str(curr_pos))
 
        
@@ -275,6 +279,7 @@ def get_goal(col_start, row_start):
         row -= 1
 
     return reference_to_origin(goal)
+    # return goal
 
 
 def get_path(start, goal, range_dist = dilate_size):
@@ -284,6 +289,8 @@ def get_path(start, goal, range_dist = dilate_size):
     # mark the curr_pos and goal on the 2D array (need to print absolute coordinates, not with reference to defined origin)
     odata[int(curr_pos[1] + odata_origin[1]), int(curr_pos[0] + odata_origin[0])] = 4 # curr_pos
     odata[int(goal[1]) + odata_origin[1], int(goal[0] + odata_origin[0])] = 4
+    # odata[int(curr_pos[1]), int(curr_pos[0])] = 4 # curr_pos
+    # odata[int(goal[1]), int(goal[0])] = 4
 
     print("finding path...")
 
@@ -293,7 +300,7 @@ def get_path(start, goal, range_dist = dilate_size):
     plt.imshow(odata, cmap="gray", origin="lower")
     # plt.draw_all()
     # pause to make sure the plot gets created
-    plt.pause(1.00000000001)
+    plt.pause(0.5)
     came_from, cost_so_far, final_pos = a_star_search(odata, start, goal, range_dist=range_dist)
     if final_pos == 0:
         print("No path found")
@@ -342,7 +349,7 @@ def get_path(start, goal, range_dist = dilate_size):
     plt.imshow(odata, cmap="gray", origin="lower")
     # plt.draw_all()
     # pause to make sure the plot gets created
-    plt.pause(1.00000000001)
+    plt.pause(0.5)
     return path_rviz
     
     # # exit this node once path found
@@ -365,7 +372,7 @@ class FirstOccupy(Node):
         occdata = np.array(msg.data)
         self.info = msg.info
         _, _, binnum = scipy.stats.binned_statistic(
-            occdata, np.nan, statistic="count", bins=[-1, 0, 20, 100]
+            occdata, np.nan, statistic="count", bins=[-1, 0, 40 , 100]
         )
         self.odata = np.uint8(binnum.reshape(msg.info.height, msg.info.width))
     

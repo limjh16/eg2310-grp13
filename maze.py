@@ -39,7 +39,7 @@ dilate_size = 2
 global quit
 quit = 0
 ipaddr = "192.168.bla.bla"
-lobby_coord = (1.8,2.8) # supposed to be 2.8
+lobby_coord = (1.8,2.7) # supposed to be 2.8
 
 class mapCheck(Node):
     def __init__(self):
@@ -127,10 +127,10 @@ def main(args=None):
     # door = 0
     # while door == 0:
     #     door = open_door(ipaddr)
-    door = 2
+    door = 1
 
-    print("!!!!!!!!!!!!!!!---------------waiting 10s, pls open door!---------------!!!!!!!!!!!!!!!!!!!")
-    time.sleep(10)
+    print("!!!!!!!!!!!!!!!---------------waiting 5s, pls open door!---------------!!!!!!!!!!!!!!!!!!!")
+    time.sleep(5)
     
 
     print("---------------going to door "+str(door)+"!---------------")

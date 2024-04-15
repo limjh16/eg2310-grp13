@@ -124,11 +124,11 @@ class WPTurner(Node):
 
 def move_straight(
     target: Tuple[float, float],
-    end_distance_range: float = 0.03,
+    end_distance_range: float = 0.05,
     PID_angular: Tuple[float, float, float] = (0.6, 0, 0.2),
     PID_linear: Tuple[float, float, float] = (0.8, 0, 0.4),
     angular_speed_limit: float = 1,  # old 2.84
-    linear_speed_limit: float = 0.17,  # old 0.22
+    linear_speed_limit: float = 0.2,  # old 0.22
 ):
     """Move Straight to RViz Waypoint
 
