@@ -5,11 +5,11 @@ from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import Twist
-from .tf2_quat_utils import euler_from_quaternion, quaternion_multiply, quaternion_from_euler
 import tf2_ros
 from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
 from simple_pid import PID
 from typing import Tuple
+from .tf2_quat_utils import euler_from_quaternion, quaternion_multiply, quaternion_from_euler
 
 
 class WPMover(Node):
@@ -23,9 +23,10 @@ class WPMover(Node):
         linear_speed_limit: float = 0.1,  # old 0.22
     ):
         super().__init__("wpmover")
-        self.subscription = self.create_subscription(
-            TFMessage, "tf", self.listener_callback, qos_profile_sensor_data
-        )
+        # self.subscription = self.create_subscription(
+        #     Odometry, "odom", self.listener_callback, qos_profile_sensor_data
+        # )
+        self.timer = self.create_timer(1/30, self.listener_callback)
         self.target_x = target[0]
         self.target_y = target[1]
         self.end_distance_range = end_distance_range
@@ -49,7 +50,7 @@ class WPMover(Node):
         )
         self.cmdvelpub = self.create_publisher(Twist, "cmd_vel", 10)
 
-    def listener_callback(self, _):
+    def listener_callback(self):
         try:
             trans = self.tfBuffer.lookup_transform(
                 "map", "base_link", rclpy.time.Time()
@@ -82,9 +83,10 @@ class WPTurner(Node):
         angular_speed_limit: float = 1,  # old 2.84
     ):
         super().__init__("wpturner")
-        self.subscription = self.create_subscription(
-            TFMessage, "tf", self.listener_callback, qos_profile_sensor_data
-        )
+        # self.subscription = self.create_subscription(
+        #     Odometry, "odom", self.listener_callback, qos_profile_sensor_data
+        # )
+        self.timer = self.create_timer(1/30, self.listener_callback)
         self.target_x = target[0]
         self.target_y = target[1]
         self.end_yaw_range = end_yaw_range
@@ -101,7 +103,7 @@ class WPTurner(Node):
         )
         self.cmdvelpub = self.create_publisher(Twist, "cmd_vel", 10)
 
-    def listener_callback(self, _):
+    def listener_callback(self):
         try:
             trans = self.tfBuffer.lookup_transform(
                 "map", "base_link", rclpy.time.Time()
@@ -122,11 +124,11 @@ class WPTurner(Node):
 
 def move_straight(
     target: Tuple[float, float],
-    end_distance_range: float = 0.1,
-    PID_angular: Tuple[float, float, float] = (0.5, 0, 1),
-    PID_linear: Tuple[float, float, float] = (0.3, 0, 1),
+    end_distance_range: float = 0.03,
+    PID_angular: Tuple[float, float, float] = (0.6, 0, 0.2),
+    PID_linear: Tuple[float, float, float] = (0.8, 0, 0.4),
     angular_speed_limit: float = 1,  # old 2.84
-    linear_speed_limit: float = 0.2,  # old 0.22
+    linear_speed_limit: float = 0.17,  # old 0.22
 ):
     """Move Straight to RViz Waypoint
 
@@ -157,9 +159,9 @@ def move_straight(
 
 def move_turn(
     target: Tuple[float, float],
-    end_yaw_range: float = 0.05,
-    PID_angular: Tuple[float, float, float] = (1, 0, 2),
-    angular_speed_limit: float = 2,  # old 2.84
+    end_yaw_range: float = 0.01,
+    PID_angular: Tuple[float, float, float] = (4, 0, 0.4),
+    angular_speed_limit: float = 1,  # old 2.84
 ):
     """Turn to face RViz Waypoint
 
@@ -183,11 +185,11 @@ def stop_kill(node: Node):
     twist.linear.x = 0.0
     twist.angular.z = 0.0
     now = time.time()
-    while time.time() - now < 0.5:
+    while time.time() - now < 0.2:
         node.cmdvelpub.publish(twist)
-        time.sleep(0.1)
+        time.sleep(0.05)
     node.get_logger().info("Done")
-    node.subscription.destroy()
+    # node.subscription.destroy()
     node.destroy_node()
 
 def angular(cur_pos, cur_rot, dx, dy, node: Node):
@@ -204,7 +206,7 @@ def angular(cur_pos, cur_rot, dx, dy, node: Node):
     angular_speed = node.pid_angular(-rot_tf_yaw)
     return angular_speed, rot_tf_yaw
 
-def dxdy(trans,node:Node):
+def dxdy(trans: tf2_ros.TransformStamped,node:Node):
     cur_pos = trans.transform.translation
     cur_rot = trans.transform.rotation
     dx = cur_pos.x - node.target_x
