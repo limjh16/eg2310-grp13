@@ -25,6 +25,8 @@ from .lib.occupy_nodes import delta_to_origin, first_scan, a_star_scan, return_o
 from .lib.open_door_http import open_door
 from .lib.bucket_utils import move_to_bucket
 from .lib.servo_client import launch_servo
+from .lib.dumb_move import time_straight, odom_turn
+from .lib.lobby import door_mover
 
 UNKNOWN = 1
 UNOCCUPIED = 2
@@ -37,7 +39,7 @@ dilate_size = 2
 global quit
 quit = 0
 ipaddr = "192.168.bla.bla"
-lobby_coord = (1.8,2.8)
+lobby_coord = (1.8,2.8) # supposed to be 2.8
 
 class mapCheck(Node):
     def __init__(self):
@@ -49,8 +51,8 @@ class mapCheck(Node):
             10)
         self.subscription  # prevent unused variable warning
         # occdata = np.array([])
-        self.tfBuffer = tf2_ros.Buffer()
-        self.tfListener = tf2_ros.TransformListener(self.tfBuffer, self)
+        # self.tfBuffer = tf2_ros.Buffer()
+        # self.tfListener = tf2_ros.TransformListener(self.tfBuffer, self)
     
     def occ_callback(self, msg):
         occdata = np.array(msg.data)
@@ -71,7 +73,11 @@ class mapCheck(Node):
 
 def main(args=None):
     rclpy.init(args=args)
+    # door_mover(1)
+    # time.sleep(100)
     
+    # time_straight(0.1,1)
+    time_straight(-0.1,4)
     first_scan()
 
     # create matplotlib figure
@@ -106,7 +112,7 @@ def main(args=None):
             break
 
     print("---------------going to lobby!---------------")
-    path_main = go_to_doors(goal=lobby_coord, range_dist=4)
+    path_main = go_to_doors(goal=lobby_coord)
     outwps = get_waypoints(path_main)
     print("out waypoints: " + str(outwps))
     for x in outwps:
@@ -121,29 +127,40 @@ def main(args=None):
     # door = 0
     # while door == 0:
     #     door = open_door(ipaddr)
-    door = 1
+    door = 2
 
     print("!!!!!!!!!!!!!!!---------------waiting 10s, pls open door!---------------!!!!!!!!!!!!!!!!!!!")
     time.sleep(10)
     
 
     print("---------------going to door "+str(door)+"!---------------")
-
-    door_coord = lobby_coord
+    # face front
+    move_turn((return_cur_pos().x, return_cur_pos().y+5))
+    # door_mover(door)
+    # move_turn((return_cur_pos().x, return_cur_pos().y+5)) # to refresh cur_pos after door_mover
     if door == 1:
-        door_coord = (1.40, door_coord[1])
+        turndeg = -90
     elif door == 2:
-        door_coord = (2.17, door_coord[1])
-    path_main = go_to_doors(goal=door_coord, range_dist=4)
-    outwps = get_waypoints(path_main)
-    print("out waypoints: " + str(outwps))
-    for x in outwps:
-        print(x)
-        # time.sleep(2)
-        move_turn(x)
-        # time.sleep(1)
-        move_straight(x)
-        # time.sleep(1)
+        turndeg = 90
+    # odom_turn(turndeg)
+    move_turn((return_cur_pos().x+turndeg, return_cur_pos().y))
+    time_straight(0.15, 3)
+
+    # door_coord = lobby_coord
+    # if door == 1:
+    #     door_coord = (1.40, door_coord[1])
+    # elif door == 2:
+    #     door_coord = (2.17, door_coord[1])
+    # path_main = go_to_doors(goal=door_coord, range_dist=4)
+    # outwps = get_waypoints(path_main)
+    # print("out waypoints: " + str(outwps))
+    # for x in outwps:
+    #     print(x)
+    #     # time.sleep(2)
+    #     move_turn(x)
+    #     # time.sleep(1)
+    #     move_straight(x)
+    #     # time.sleep(1)
     '''
     odata_delta = return_odata_origin_delta()
     door_coord = (
@@ -155,12 +172,13 @@ def main(args=None):
     '''
 
     print("---------------going to bucket!---------------")
-    if(move_to_bucket() is not None):
-        print("---------------launching servo!---------------")
-        launch_servo()
-    else:
+    while(move_to_bucket(threshold=0.03) is None):
         print("---------------no bucket found :(---------------")
-        # TODO continue finding the damn bucket
+        print("---------------moving forward---------------")
+        time_straight(0.15, 2)
+
+    print("---------------launching servo!---------------")
+    launch_servo()
 
     # Go back to explore the maze
     for _ in range(15):
