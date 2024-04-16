@@ -424,9 +424,12 @@ class FirstOccupy(Node):
 
 # calculates euclidean distance from current position to the goal
 def cost_to_goal(pos, goal_pos):
-    dist_x = abs(goal_pos[0] - pos[0])
-    dist_y = abs(goal_pos[1] - pos[1])
-    return math.sqrt(dist_x**2 + dist_y**2)
+    # dist_x = abs(goal_pos[0] - pos[0])
+    # dist_y = abs(goal_pos[1] - pos[1])
+    # return math.sqrt(dist_x**2 + dist_y**2)
+    (x1, y1) = pos
+    (x2, y2) = goal_pos
+    return 1.41 if abs(x1 - x2) and abs(y1 - y2) else 1 # sqrt2
 
     
 def in_bounds(id):
@@ -465,7 +468,8 @@ def neighbors(id, graph):
 def heuristic(a, b):
     (x1, y1) = a
     (x2, y2) = b
-    return 1.4 if abs(x1 - x2) and abs(y1 - y2) else 1 # sqrt2
+    # return 1.4 if abs(x1 - x2) and abs(y1 - y2) else 1 # sqrt2
+    return round(math.sqrt(abs(x1 - x2)**2 + abs(y1 - y2)**2),2)
 
 # I got this one from online somewhere
 def a_star_search(graph, start, goal, range_dist = dilate_size):
@@ -484,7 +488,7 @@ def a_star_search(graph, start, goal, range_dist = dilate_size):
     frontier.put((0, start))
     came_from = {start: None}
     cost_so_far = {start: 0}
-    turning_cost = 8
+    turning_cost = 0.50
     final_pos = 0 # initialise final_pos variable, if 0 is returned then a clear path is not found
 
     while not frontier.empty():
@@ -508,26 +512,27 @@ def a_star_search(graph, start, goal, range_dist = dilate_size):
         #     break
         
         for next in neighbors(current, graph):
-            new_cost = cost_so_far[current] + cost_to_goal(current, next)
-            if next not in cost_so_far or new_cost < cost_so_far[next]:
-                cost_so_far[next] = new_cost
-                priority = new_cost + heuristic(goal, next)
-                priority += costmap[next[1]][next[0]]
-                prev = came_from[current]
-                if prev != None:
-                    # next_direction = (int(next[0] - current[0]), int(next[1] - current[1]))
-                    # current_direction = (int(current[0] - prev[0]), int(current[1] - prev[1]))
-                    next_direction = (next[0] - current[0], next[1] - current[1])
-                    current_direction = (current[0] - prev[0], current[1] - prev[1])
-                    if  current_direction != next_direction:
-                        
-                        priority += turning_cost
-                        # print("cost added")
+            new_cost = cost_so_far[current] + cost_to_goal(current, next) + costmap[next[1]][next[0]]
+            # priority += costmap[next[1]][next[0]]
+            prev = came_from[current]
+            if prev != None:
+                # next_direction = (int(next[0] - current[0]), int(next[1] - current[1]))
+                # current_direction = (int(current[0] - prev[0]), int(current[1] - prev[1]))
+                next_direction = (next[0] - current[0], next[1] - current[1])
+                current_direction = (current[0] - prev[0], current[1] - prev[1])
+                if  current_direction != next_direction:
                     
+                    new_cost += turning_cost
+                    # print("cost added")
+            # new_cost = priority
+            new_cost = round(new_cost,2)
+            if next not in cost_so_far or new_cost < round(cost_so_far[next],2):
+
+                priority = new_cost + heuristic(goal, next)
+                cost_so_far[next] = new_cost
                 frontier.put((priority,next))
                 came_from[next] = current
-    # print(cost_so_far)
-   
+    print(cost_so_far)
     return came_from, cost_so_far, final_pos
     # return path
 
