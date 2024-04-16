@@ -126,7 +126,7 @@ def move_straight(
     target: Tuple[float, float],
     end_distance_range: float = 0.05,
     PID_angular: Tuple[float, float, float] = (0.6, 0, 0.2),
-    PID_linear: Tuple[float, float, float] = (0.8, 0, 0.4),
+    PID_linear: Tuple[float, float, float] = (0.8, 0, 0.2),
     angular_speed_limit: float = 1,  # old 2.84
     linear_speed_limit: float = 0.2,  # old 0.22
 ):

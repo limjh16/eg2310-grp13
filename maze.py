@@ -1,4 +1,5 @@
 import time
+import warnings
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
@@ -65,7 +66,7 @@ class mapCheck(Node):
         # y_dist = np.max(no_wall_indexes[0]) - return_odata_origin()[1]
         # print("distance_to_furthest:  "+str(y_dist))
         # if (y_dist > (3 / msg.info.resolution)):
-        if (odata_lobby_coord[0] in no_wall_indexes[1] and odata_lobby_coord[1] in no_wall_indexes[0]):
+        if (odata_lobby_coord[0]-3 in no_wall_indexes[1] and odata_lobby_coord[0]+3 in no_wall_indexes[1] and odata_lobby_coord[1]+5 in no_wall_indexes[0]):
             global quit
             quit = 1
             print("!!!!!!!!!!!!!!!!!!!!!!!!quit!!!!!!!!!!!!!!!!!!")
@@ -93,8 +94,7 @@ def main(args=None):
         print("out waypoints: " + str(outwps))
         time_start = time.time()
         for x in outwps:
-            print(x)
-            # time.sleep(2)
+            # print(x)
             if quit:
                 break
             if time.time()-time_start > 20:
@@ -102,9 +102,7 @@ def main(args=None):
             # will reset once every 20 seconds unless exit is seen: if exit seen, will move directly to exit and skip the resets.
             # once exit is seen, don't reset anymore (exitbreak will never equal 1) until quit is called
             move_turn(x)
-            # time.sleep(1)
             move_straight(x)
-            # time.sleep(1)
 
             rclpy.spin_once(mapcheck)
         if quit:
@@ -120,12 +118,9 @@ def main(args=None):
         outwps = get_waypoints(path_main)
         print("out waypoints: " + str(outwps))
         for x in outwps:
-            print(x)
-            # time.sleep(2)
+            # print(x)
             move_turn(x)
-            # time.sleep(1)
             move_straight(x)
-            # time.sleep(1)
 
     # print("---------------http call!---------------")
     # door = 0
@@ -143,27 +138,23 @@ def main(args=None):
     # door_mover(door)
     # move_turn((return_cur_pos().x, return_cur_pos().y+5)) # to refresh cur_pos after door_mover
 
+    door_coord = lobby_coord
+    if door == 1:
+        door_coord = (door_coord[0]-0.4, door_coord[1])
+        turndeg = -90
+    elif door == 2:
+        door_coord = (door_coord[0]+0.4, door_coord[1])
+        turndeg = 90
+    warnings.filterwarnings("error")
     try:
-        door_coord = lobby_coord
-        if door == 1:
-            door_coord = (1.40, door_coord[1])
-        elif door == 2:
-            door_coord = (2.17, door_coord[1])
-        path_main = go_to_doors(goal=door_coord, range_dist=4)
+        path_main = go_to_doors(goal=door_coord)
         outwps = get_waypoints(path_main)
         print("out waypoints: " + str(outwps))
         for x in outwps:
-            print(x)
-            # time.sleep(2)
+            # print(x)
             move_turn(x)
-            # time.sleep(1)
             move_straight(x)
-            # time.sleep(1)
-    except:
-        if door == 1:
-            turndeg = -90
-        elif door == 2:
-            turndeg = 90
+    except (RuntimeWarning, TypeError):
         # odom_turn(turndeg)
         move_turn((return_cur_pos().x+turndeg, return_cur_pos().y))
         time_straight(0.15, 3)
@@ -194,18 +185,14 @@ def main(args=None):
         print("out waypoints: " + str(outwps))
         time_start = time.time()
         for x in outwps:
-            print(x)
-            # time.sleep(2)
+            # print(x)
             if time.time()-time_start > 20:
                 break
-            # will reset once every 20 seconds unless exit is seen: if exit seen, will move directly to exit and skip the resets.
-            # once exit is seen, don't reset anymore (exitbreak will never equal 1) until quit is called
-            move_turn(x, end_yaw_range=0.13, PID_angular=(2,0,4))
-            # time.sleep(1)
+            # will reset once every 20 seconds.
+            move_turn(x)
             move_straight(x)
-            # time.sleep(1)
 
-            rclpy.spin_once(mapcheck)
+            # rclpy.spin_once(mapcheck)
 
     plt.close()
 

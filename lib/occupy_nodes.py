@@ -22,6 +22,7 @@ import scipy.stats
 from .maze_manipulation import dilate123, inflate
 # from .lib.pid_tf2 import move_straight, move_turn
 from array import array as Array
+import warnings
 
 
 UNKNOWN = 1
@@ -199,7 +200,7 @@ class Occupy(Node):
             closest_pt = return_odata_origin()
             for pts in unoccupied_pts: 
                 pts = (pts[1], pts[0])
-                calc_dist = cost_to_goal(curr_pos_odata, pts)
+                calc_dist = heuristic(curr_pos_odata, pts)
                 if calc_dist < closest_dist:
                     closest_dist = calc_dist
                     closest_pt = pts
@@ -330,7 +331,7 @@ def get_path(start, goal, range_dist = dilate_size):
     path.reverse()
     # declare an empty array to store the rviz coordinates of the path, to be used to move the robot
     path_rviz = []
-    print(str(path))
+    # print(str(path))
 
     #loop for every point in path to convert to rviz coordinates to be stored in path_rviz
     for point in path:
@@ -339,7 +340,7 @@ def get_path(start, goal, range_dist = dilate_size):
         point_rviz = convert_to_rviz(map_point)
         path_rviz.append((round(point_rviz[0], 4), round(point_rviz[1], 4)))
 
-    print(str(path_rviz))
+    # print(str(path_rviz))
     # global path_main
     # path_main = path_rviz
     
@@ -532,7 +533,7 @@ def a_star_search(graph, start, goal, range_dist = dilate_size):
                 cost_so_far[next] = new_cost
                 frontier.put((priority,next))
                 came_from[next] = current
-    print(cost_so_far)
+    # print(cost_so_far)
     return came_from, cost_so_far, final_pos
     # return path
 
@@ -594,12 +595,13 @@ def go_to_doors(goal=(1.8, 2.8), range_dist=dilate_size):
     odata[int(goal_odata[1]), int(goal_odata[0])] = 4 # curr_pos
 
     if not is_in_unoccupied: 
+        warnings.warn("not_in_unoccupied")
         unoccupied_pts = np.transpose(np.nonzero(odata == 2))
         closest_dist = 999999
         closest_pt = return_odata_origin()
         for pts in unoccupied_pts: 
             pts = (pts[1], pts[0])
-            calc_dist = cost_to_goal(goal_odata, pts)
+            calc_dist = heuristic(goal_odata, pts)
             if calc_dist < closest_dist:
                 closest_dist = calc_dist
                 closest_pt = pts
@@ -617,7 +619,7 @@ def go_to_doors(goal=(1.8, 2.8), range_dist=dilate_size):
     #     print("going between doors")
     #     goal_pos =
     path_main = get_path(curr_pos, goal_odata, range_dist=range_dist)
-    print(str(path_main))
+    # print(str(path_main))
     return path_main
 
 
