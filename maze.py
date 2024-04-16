@@ -77,7 +77,7 @@ def main(args=None):
     # time.sleep(100)
     
     # time_straight(0.1,1)
-    # time_straight(-0.1,4)
+    time_straight(-0.1,4)
     first_scan()
 
     # create matplotlib figure
@@ -88,7 +88,7 @@ def main(args=None):
 
     for _ in range(15):
         path_main = a_star_scan()
-        time.sleep(1000)
+        # time.sleep(1000)
         outwps = get_waypoints(path_main)
         print("out waypoints: " + str(outwps))
         time_start = time.time()
