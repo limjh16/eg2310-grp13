@@ -23,34 +23,54 @@ class DoorMover(Node):
 
     def move(self, door, speed: float = 0.1):
         rclpy.spin_once(self)
+        angle_angle = 27
         if door == 1:
-            index_high = int(np.deg2rad(270-25)/self.angle_increment)
-            index_low = int(np.deg2rad(270+25)/self.angle_increment)
+            index_high = int(np.deg2rad(270-angle_angle)/self.angle_increment)
+            index_low = int(np.deg2rad(270+angle_angle)/self.angle_increment)
+            incr = -1
         elif door == 2:
-            index_high = int(np.deg2rad(90+25)/self.angle_increment)
-            index_low = int(np.deg2rad(90-25)/self.angle_increment)
+            index_high = int(np.deg2rad(90+angle_angle)/self.angle_increment)
+            index_low = int(np.deg2rad(90-angle_angle)/self.angle_increment)
+            incr = 1
         else:
             self.get_logger().error("door invalid!")
             return None
-        twist = Twist()
-        twist.linear.x = -speed
         key_dist_high = self.lidar_ranges[index_high]
-        if np.isnan(key_dist_high):
-            key_dist_high = self.lidar_ranges[index_high-1]
+        while np.isnan(key_dist_high):
+            # key_dist_high = self.lidar_ranges[index_high+incr]
+            # print("nan")
+            rclpy.spin_once(self)
         key_dist_low = self.lidar_ranges[index_low]
-        if np.isnan(key_dist_low):
-            key_dist_low = self.lidar_ranges[index_low-1]
+        while np.isnan(key_dist_low):
+            # key_dist_low = self.lidar_ranges[index_low-incr]
+            # print("nan")
+            rclpy.spin_once(self)
         print((key_dist_high, key_dist_low))
+        twist = Twist()
         try:
             while key_dist_high < 0.6 or key_dist_low < 0.6:
                 rclpy.spin_once(self)
                 key_dist_high = self.lidar_ranges[index_high]
                 if np.isnan(key_dist_high):
-                    key_dist_high = self.lidar_ranges[index_high-1]
+                    # key_dist_high = self.lidar_ranges[index_high+incr]
+                    # print("nan")
+                    twist.linear.x = 0.0
+                    self.cmdvelpub.publish(twist)
+                    continue
+                    # rclpy.spin_once(self)
                 key_dist_low = self.lidar_ranges[index_low]
                 if np.isnan(key_dist_low):
-                    key_dist_low = self.lidar_ranges[index_low-1]
+                    # key_dist_low = self.lidar_ranges[index_low-incr]
+                    # print("nan")
+                    twist.linear.x = 0.0
+                    self.cmdvelpub.publish(twist)
+                    continue
+                    # rclpy.spin_once(self)
                 print((key_dist_high, key_dist_low))
+                if key_dist_low > 0.6:
+                    twist.linear.x = speed
+                else:
+                    twist.linear.x = -speed
                 self.cmdvelpub.publish(twist)
         except KeyboardInterrupt:
             self.get_logger().info("KeyboardInterrupt!")
