@@ -24,8 +24,8 @@ class Costmap(Node):
         odata = inflate(
             occdata.reshape(msg.info.height, msg.info.width),
             dilate=int((0.243 / 2) // msg.info.resolution + 1),
-            inflation_radius=8,
-            inflation_step=5,
+            inflation_radius=4,
+            inflation_step=24,
             threshold=52,
             erode=6,
         )
