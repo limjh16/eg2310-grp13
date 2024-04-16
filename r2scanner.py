@@ -39,14 +39,16 @@ class Scanner(Node):
         #         camera_range[range_dex] = 999
     
         laser_range = np.array(msg.ranges)
+        print(laser_range[len(laser_range)//2])
+        # np.savetxt("lidar_doors8.txt",laser_range, "%0.4f")
         # replace 0's with nan
-        laser_range[laser_range==0] = np.nan
+        # laser_range[laser_range==0] = np.nan
         # find index with minimum value
        
-        lr2i = np.nanargmin(laser_range)
+        # lr2i = np.nanargmin(laser_range)
 
         # log the info
-        self.get_logger().info('Shortest distance at %i degrees' % lr2i)
+        # self.get_logger().info('Shortest distance at %i degrees' % lr2i)
 
 
 def main(args=None):
@@ -54,6 +56,7 @@ def main(args=None):
 
     scanner = Scanner()
 
+    # rclpy.spin_once(scanner)
     rclpy.spin(scanner)
 
     # Destroy the node explicitly

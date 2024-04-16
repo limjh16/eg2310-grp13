@@ -14,7 +14,7 @@ def open_door(ESP_IP:str):
     # TODO: catch timeout / problem, then manual input
 
 def main(args=None):
-    print(open_door("192.168.67.199"))
+    print(open_door("192.168.15.87"))
 
 if __name__ == "__main__":
     main()

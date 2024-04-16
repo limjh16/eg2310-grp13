@@ -40,8 +40,8 @@ path_main = []
 dilate_size = 2
 global quit
 quit = 0
-ipaddr = "192.168.bla.bla"
-lobby_coord = (1.8,2.7) # supposed to be 2.8
+ipaddr = "192.168.15.87"
+lobby_coord = (1.8,2.85) # supposed to be 2.8
 
 class mapCheck(Node):
     def __init__(self):
@@ -86,7 +86,7 @@ def main(args=None):
     # time.sleep(1000)
     
     # time_straight(0.1,1)
-    time_straight(-0.1,4)
+    time_straight(-0.1,10)
     first_scan()
 
     # create matplotlib figure
