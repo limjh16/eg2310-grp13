@@ -142,29 +142,31 @@ def main(args=None):
     move_turn((return_cur_pos().x, return_cur_pos().y+5))
     # door_mover(door)
     # move_turn((return_cur_pos().x, return_cur_pos().y+5)) # to refresh cur_pos after door_mover
-    if door == 1:
-        turndeg = -90
-    elif door == 2:
-        turndeg = 90
-    # odom_turn(turndeg)
-    move_turn((return_cur_pos().x+turndeg, return_cur_pos().y))
-    time_straight(0.15, 3)
 
-    # door_coord = lobby_coord
-    # if door == 1:
-    #     door_coord = (1.40, door_coord[1])
-    # elif door == 2:
-    #     door_coord = (2.17, door_coord[1])
-    # path_main = go_to_doors(goal=door_coord, range_dist=4)
-    # outwps = get_waypoints(path_main)
-    # print("out waypoints: " + str(outwps))
-    # for x in outwps:
-    #     print(x)
-    #     # time.sleep(2)
-    #     move_turn(x)
-    #     # time.sleep(1)
-    #     move_straight(x)
-    #     # time.sleep(1)
+    try:
+        door_coord = lobby_coord
+        if door == 1:
+            door_coord = (1.40, door_coord[1])
+        elif door == 2:
+            door_coord = (2.17, door_coord[1])
+        path_main = go_to_doors(goal=door_coord, range_dist=4)
+        outwps = get_waypoints(path_main)
+        print("out waypoints: " + str(outwps))
+        for x in outwps:
+            print(x)
+            # time.sleep(2)
+            move_turn(x)
+            # time.sleep(1)
+            move_straight(x)
+            # time.sleep(1)
+    except:
+        if door == 1:
+            turndeg = -90
+        elif door == 2:
+            turndeg = 90
+        # odom_turn(turndeg)
+        move_turn((return_cur_pos().x+turndeg, return_cur_pos().y))
+        time_straight(0.15, 3)
     '''
     odata_delta = return_odata_origin_delta()
     door_coord = (
