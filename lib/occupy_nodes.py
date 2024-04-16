@@ -429,7 +429,7 @@ def cost_to_goal(pos, goal_pos):
     # return math.sqrt(dist_x**2 + dist_y**2)
     (x1, y1) = pos
     (x2, y2) = goal_pos
-    return 1.41 if abs(x1 - x2) and abs(y1 - y2) else 1 # sqrt2
+    return 1.41 if int(abs(x1 - x2)) and int(abs(y1 - y2)) else 1 # sqrt2
 
     
 def in_bounds(id):
@@ -488,7 +488,7 @@ def a_star_search(graph, start, goal, range_dist = dilate_size):
     frontier.put((0, start))
     came_from = {start: None}
     cost_so_far = {start: 0}
-    turning_cost = 0.50
+    turning_cost = 2
     final_pos = 0 # initialise final_pos variable, if 0 is returned then a clear path is not found
 
     while not frontier.empty():
@@ -512,8 +512,7 @@ def a_star_search(graph, start, goal, range_dist = dilate_size):
         #     break
         
         for next in neighbors(current, graph):
-            new_cost = cost_so_far[current] + cost_to_goal(current, next) + costmap[next[1]][next[0]]
-            # priority += costmap[next[1]][next[0]]
+            new_cost = cost_so_far[current] + cost_to_goal(current, next)
             prev = came_from[current]
             if prev != None:
                 # next_direction = (int(next[0] - current[0]), int(next[1] - current[1]))
@@ -529,6 +528,7 @@ def a_star_search(graph, start, goal, range_dist = dilate_size):
             if next not in cost_so_far or new_cost < round(cost_so_far[next],2):
 
                 priority = new_cost + heuristic(goal, next)
+                priority += costmap[next[1]][next[0]]
                 cost_so_far[next] = new_cost
                 frontier.put((priority,next))
                 came_from[next] = current
