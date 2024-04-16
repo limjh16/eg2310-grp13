@@ -1,3 +1,4 @@
+from csv import excel
 import time
 import warnings
 import rclpy
@@ -58,15 +59,15 @@ class mapCheck(Node):
     def occ_callback(self, msg):
         occdata = np.array(msg.data)
         cdata = occdata.reshape(msg.info.height, msg.info.width)
-        cdata[cdata == 100] = -1
+        # cdata[cdata == 100] = -1
         cdata[cdata >= 0] = 1
         cdata[cdata == -1] = 0
-        no_wall_indexes = np.nonzero(cdata)
+        no_unknown_indexes = np.nonzero(cdata)
         odata_lobby_coord = delta_to_origin(convert_to_odata(lobby_coord, msg.info.origin.position.x, msg.info.origin.position.y))
-        # y_dist = np.max(no_wall_indexes[0]) - return_odata_origin()[1]
+        # y_dist = np.max(no_unknown_indexes[0]) - return_odata_origin()[1]
         # print("distance_to_furthest:  "+str(y_dist))
         # if (y_dist > (3 / msg.info.resolution)):
-        if (odata_lobby_coord[0]-3 in no_wall_indexes[1] and odata_lobby_coord[0]+3 in no_wall_indexes[1] and odata_lobby_coord[1]+5 in no_wall_indexes[0]):
+        if (odata_lobby_coord[0]-3 in no_unknown_indexes[1] and odata_lobby_coord[0]+3 in no_unknown_indexes[1] and odata_lobby_coord[1]+5 in no_unknown_indexes[0]):
             global quit
             quit = 1
             print("!!!!!!!!!!!!!!!!!!!!!!!!quit!!!!!!!!!!!!!!!!!!")
@@ -74,8 +75,15 @@ class mapCheck(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    # door_mover(1)
-    # time.sleep(100)
+
+    # door_mover()
+    # odom_turn(-90)
+    # time_straight(0.15, 3)
+    # while(move_to_bucket(threshold=0.02) is None):
+    #     print("---------------no bucket found :(---------------")
+    #     print("---------------moving forward---------------")
+    #     time_straight(0.15, 2)
+    # time.sleep(1000)
     
     # time_straight(0.1,1)
     time_straight(-0.1,4)
@@ -123,10 +131,19 @@ def main(args=None):
             move_straight(x)
 
     # print("---------------http call!---------------")
-    # door = 0
-    # while door == 0:
-    #     door = open_door(ipaddr)
-    door = 1
+    door = 0
+    try:
+        door = open_door(ipaddr)
+    except Exception as e:
+        print(e)
+    while door == 0:
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!! request failed !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        time.sleep(1)
+        try:
+            door = open_door(ipaddr)
+        except Exception as e:
+            print(e)
+    # door = 1
 
     print("!!!!!!!!!!!!!!!---------------waiting 5s, pls open door!---------------!!!!!!!!!!!!!!!!!!!")
     time.sleep(5)
@@ -135,9 +152,16 @@ def main(args=None):
     print("---------------going to door "+str(door)+"!---------------")
     # face front
     move_turn((return_cur_pos().x, return_cur_pos().y+5))
-    # door_mover(door)
-    # move_turn((return_cur_pos().x, return_cur_pos().y+5)) # to refresh cur_pos after door_mover
+    door_mover()
+    if door == 1:
+        turndeg = -5
+    elif door == 2:
+        turndeg = 5
+    move_turn((return_cur_pos().x, return_cur_pos().y+5)) # to refresh cur_pos after door_mover
+    move_turn((return_cur_pos().x+turndeg, return_cur_pos().y))
+    time_straight(0.15, 4)
 
+    '''
     door_coord = lobby_coord
     if door == 1:
         door_coord = (door_coord[0]-0.4, door_coord[1])
@@ -156,8 +180,11 @@ def main(args=None):
             move_straight(x)
     except (RuntimeWarning, TypeError):
         # odom_turn(turndeg)
+        door_mover()
+        move_turn((return_cur_pos().x, return_cur_pos().y+5)) # to refresh cur_pos after door_mover
         move_turn((return_cur_pos().x+turndeg, return_cur_pos().y))
-        time_straight(0.15, 3)
+        time_straight(0.15, 4)
+    '''    
     '''
     odata_delta = return_odata_origin_delta()
     door_coord = (
