@@ -36,7 +36,7 @@ dilate_size = 2
 
 # use this function to convert raw odata coordinates to reference the defined origin
 def reference_to_origin(raw_odata_coord):
-    """ Offsetting of raw data of coordinates with respect to the defined origin on odata
+    """ Offsetting of raw data of coordinates with respect to our defined origin on odata
     Args:
         raw_odata_coord (tuple): the (x, y) value in odata
     Returns: 
@@ -61,6 +61,10 @@ def dereference_to_origin(ref_odata_coord):
     )
 
 def delta_to_origin(ref_odata_coord):
+    """ Sets an odata coordinate by an offset value
+    Args: 
+        ref_odata_coord (tuple): an (x, y) value in odata
+    """
     return (
         ref_odata_coord[0] + odata_origin_delta[0],
         ref_odata_coord[1] + odata_origin_delta[1]
@@ -108,15 +112,22 @@ def convert_to_odata(rviz, origin_x, origin_y):
 
 # this is used to check if a point is next to an unoccupied area
 def check_neighbours(row, col, checknum):
+    """ Checks if a cell in odata is next to a cell of a specified value. Scans the 8 surrounding cells and checks if they are of a specified value
+    Args: 
+        row (int): row index of the specified cell in odata
+        col (int): column index of the spcified cell in odata
+        checknum (int): value to check for surrounding cells 
+    Returns: 
+        bool: True if value of surounding cell is equal to the checknum value, False otherwise"""
         directions = [
             (1, 0), #right
             (0, 1), #forward
             (-1, 0), #left
             (0, -1), #back
-            (1, 1), 
-            (-1, 1),
-            (-1, -1),
-            (1, -1)
+            (1, 1), #front-right
+            (-1, 1), #front-left
+            (-1, -1), #back-left
+            (1, -1) #back-right
             ]
         for direction in directions:
             new_col = col + direction[0]
@@ -189,11 +200,12 @@ class Occupy(Node):
 
         # curr_pos_odata is not yet referenced to our defined origin from FirstOccupy()
 
-        # do this to find the next closest point in odata that is unoccupied
+        # check the odata value of curr_pos_odata to check if the point is within a wall or dilate
         is_in_wall = (odata[curr_pos_odata[1]][curr_pos_odata[0]] == 3)
 
         odata[int(curr_pos_odata[1]), int(curr_pos_odata[0])] = 4 # curr_pos
 
+        # if curr_pos_odata is within a wall or dilate, set curr_pos_odata to be the unoccupied point closest to it
         if is_in_wall: 
             unoccupied_pts = np.transpose(np.nonzero(odata == 2))
             closest_dist = 999999
@@ -211,7 +223,7 @@ class Occupy(Node):
 
 
 
-        # current position of turtlebot in odata, with reference to origin 
+        # globalise the current position of turtlebot in odata, with reference to origin 
         global curr_pos
         curr_pos = reference_to_origin(curr_pos_odata)
         # curr_pos = curr_pos_odata
@@ -241,8 +253,17 @@ class Occupy(Node):
         # EVERYTHING SHOULD NOW BE CONVERTED TO ODATA COORDINATES
         # exit this node once start and goal is found
         raise SystemExit
+
+
     
 def get_goal(col_start, row_start): 
+""" finds the next unoccupied point for the robot to move to (the unoccupied point must be next to an unknown point)
+Args: 
+    col_start (int): x-coordinate to begin iterating through odata
+    row_start (int): y-coordinate to begin iterating through odata 
+Returns: 
+    tuple: (x, y) coordinate of the next unoccupied point in odata, referenced to origin """
+
     # iterate through odata to find the goal (highest y coordinate)
     # maxnum = 0
     width = odata_x
@@ -284,6 +305,14 @@ def get_goal(col_start, row_start):
 
 
 def get_path(start, goal, range_dist = dilate_size):
+""" finds the path, using a_star_search(), for the robot to traverse to the current goal point in the maze 
+Args: 
+    start (tuple): (x, y) coordinates of the starting position of the robot in the path
+    goal (tuple): (x, y) coordinates of the goal position of the robot
+    range_dist (int): a value to specify the range for the distance between the end of the generated path and the goal
+Returns: 
+    list: the found path as a list of coordinates in rviz """
+
     # start_pos = curr_pos
     
     odata_origin = return_odata_origin()
@@ -378,6 +407,9 @@ class FirstOccupy(Node):
         self.odata = np.uint8(binnum.reshape(msg.info.height, msg.info.width))
     
     def find_origin(self):
+    """ Defines an origin transform in rviz to be used as a reference point 
+    Args: None
+    Returns: None """
         rclpy.spin_once(self)
         (odata_y, odata_x) = self.odata.shape
         minnum = 10000000
@@ -425,6 +457,12 @@ class FirstOccupy(Node):
 
 # calculates euclidean distance from current position to the goal
 def cost_to_goal(pos, goal_pos):
+""" Finds the distance cost from one cell in odata to an adjacent cell
+Args: 
+    pos (tuple): (x, y) coordinates of current position in odata 
+    goal_pos (tuple): (x, y) coordinates of adjacent cell to travel to
+Returns: 
+    float: distance cost between pos and goal_pos """
     # dist_x = abs(goal_pos[0] - pos[0])
     # dist_y = abs(goal_pos[1] - pos[1])
     # return math.sqrt(dist_x**2 + dist_y**2)
@@ -434,12 +472,22 @@ def cost_to_goal(pos, goal_pos):
 
     
 def in_bounds(id):
+""" To check if a specified point is within the minimum and maximum bounds of odata
+Args: 
+    id (tuple): (x, y) coordinates of the specified point
+Returns: 
+    bool: True if the specified point is within odata, False otherwise """
     temp_pos = dereference_to_origin(id)
     if temp_pos[1] > len(odata) or temp_pos[0] > len(odata[0]) or temp_pos[1] < 0 or temp_pos[0] < 0:
         return False
     return True
 
 def passable(id):
+""" To check if a specified point in odata is of odata value 2 (unoccupied) 
+Args: 
+    id (tuple): (x, y) coordinates of the specified point 
+Returns: 
+    bool: True if the specified point is of odata value 2, False otherwise"""
     temp_pos = dereference_to_origin(id)
     if odata[temp_pos[1]][temp_pos[0]] != 2:
         return False
