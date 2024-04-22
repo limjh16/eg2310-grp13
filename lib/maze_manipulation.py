@@ -44,6 +44,19 @@ def dilate123(src, size=1, shape=cv.MORPH_RECT):
     return np.maximum(src, array_dilated)
 
 def inflate(src: np.ndarray, dilate = 2, threshold = 40, inflation_radius = 4, inflation_step = 2, erode = 2):
+    """Inflation function for costmap
+
+    Args:
+        src (np.ndarray): 2D Occupancy Grid Map
+        dilate (int, optional): How many grids to dilate by, based on robot size. Defaults to 2.
+        threshold (int, optional): Percentage threshold to consider a particular grid as occupied / unoccupied. Defaults to 40.
+        inflation_radius (int, optional): How many grids to inflate with a cost. Defaults to 4.
+        inflation_step (int, optional): Value of each grid's cost inflation. Defaults to 2.
+        erode (int, optional): How many grids to erode, to get rid of stray unoccupied points. Defaults to 2.
+
+    Returns:
+        np.ndarray: 2D Costmap, viewable in RViz
+    """
     array_eroded: np.ndarray = src.copy()
     array_eroded[src == -1] = 1
     array_eroded[src != -1] = 0
