@@ -535,7 +535,7 @@ Returns:
     # return 1.4 if abs(x1 - x2) and abs(y1 - y2) else 1 # sqrt2
     return round(math.sqrt(abs(x1 - x2)**2 + abs(y1 - y2)**2),2)
 
-# I got this one from online somewhere
+# I got this one from online somewhere: https://www.redblobgames.com/pathfinding/a-star/introduction.html
 def a_star_search(graph, start, goal, range_dist = dilate_size):
     """ This function searches for the shortest path via the a star search algo
     Args: 
