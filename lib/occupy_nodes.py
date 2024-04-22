@@ -488,6 +488,7 @@ Args:
     id (tuple): (x, y) coordinates of the specified point 
 Returns: 
     bool: True if the specified point is of odata value 2, False otherwise"""
+
     temp_pos = dereference_to_origin(id)
     if odata[temp_pos[1]][temp_pos[0]] != 2:
         return False
@@ -496,6 +497,13 @@ Returns:
 
 
 def neighbors(id, graph):
+""" For a secified cell in odata, scans the surrounding 8 cells and identifies the cells that can be traversed to
+Args: 
+    id (tuple): (x, y) coordinate of the specified cell
+    graph (np.ndarray): 2D array of the occupancy map (odata) 
+Returns: 
+    list: list of surrounding cells that can be traversed """
+
     (x, y) = id
     results = [
         (x + 1, y), # right
@@ -515,6 +523,13 @@ def neighbors(id, graph):
     
 
 def heuristic(a, b):
+""" Calculates the euclidean distance between two points in the occupancy map
+Args:    
+    a (tuple): (x, y) coordinate of a specified point in the occupancy map
+    b (tuple): (x, y) coordinate of a specified point in the occupancy map
+Returns: 
+    float: distance between points a and b """
+
     (x1, y1) = a
     (x2, y2) = b
     # return 1.4 if abs(x1 - x2) and abs(y1 - y2) else 1 # sqrt2
@@ -530,7 +545,8 @@ def a_star_search(graph, start, goal, range_dist = dilate_size):
     Returns: 
         came_from (dict): For each point in the path, the coordinates provided is the coordinates prior to that point
         cost_so_far (dict): 
-        final_pos (tuple): The coordinates of the final position of the robot once the path is complete"""
+        final_pos (tuple): The coordinates of the final position of the robot once the path is complete """
+    
     print("Start: " + str(start))
     print("Goal: " + str(goal))
     frontier = PriorityQueue()
