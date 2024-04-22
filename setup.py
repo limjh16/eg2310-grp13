@@ -20,18 +20,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'r2mover = auto_nav.r2mover:main',
-            'r2moverotate = auto_nav.r2moverotate:main',
             'r2scanner = auto_nav.r2scanner:main',
-            'r2occupancy = auto_nav.r2occupancy:main',
-            'r2occupancy2 = auto_nav.r2occupancy2:main',
-            'r2auto_nav = auto_nav.r2auto_nav:main',
             'maze = auto_nav.maze:main',
             'costmap = auto_nav.costmap:main',
-'a_star = auto_nav.a_star:main',
-'utils = auto_nav.utils:main',
-'gridmap = auto_nav.gridmap:main',
-            'r2maze_test = auto_nav.r2maze_test:main',
             'jervin_rpicam = auto_nav.jervin_rpicam:main',
             'statictf = auto_nav.statictf:main',
         ],
