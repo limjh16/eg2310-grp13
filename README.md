@@ -47,5 +47,8 @@ This repository contains the source code for our group's EG2310 robot.
 ```
 
 ## Documentation
-Documentation for individual functions can be found in the docstrings in each python file.
-\<insert link to all our presentations and reports\>
+- Documentation for individual functions can be found in the docstrings in each python file.
+- All our reports (Con-Ops, PDR and Final Report) can be found in the [assets folder](/assets/)
+- [SOLIDWORKS CAD files](/assets/SOLIDWORKS_Robot_Assembly.zip) are also located in the [assets folder](/assets/) as a zip file, Git LFS is required to download it (OR just [download](https://github.com/limjh16/eg2310-grp13/raw/main/assets/SOLIDWORKS_Robot_Assembly.zip) it from this GitHub website directly).
+  - [Install Git LFS](https://github.com/git-lfs/git-lfs/wiki/Installation) and make sure to run `git lfs install`
+  - Clone this repository as per normal
